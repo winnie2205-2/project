@@ -1,0 +1,30 @@
+/* Style for the button */
+.btn-light {
+    background-color: #f8f9fa;
+    color: #000000;
+    border: 2px solid black;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 5px;
+  }
+
+  .dropdown-menu {
+    background-color: #ffffff;
+    border-radius: 5px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    padding: 0;
+  }
+
+  .dropdown-item {
+    padding: 10px 15px;
+    font-size: 14px;
+    color: black;
+  }
+
+  .dropdown-item:hover {
+    background-color: #B3C799;
+  }
+  .my-popup-class {
+    margin: auto;
+  }
+  

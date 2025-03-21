@@ -1,0 +1,53 @@
+.left-column {
+  background-image: url('../../assets/img/loading%20bg.png');
+  background-size: cover;
+  height: 100vh;
+}
+
+.btn {
+  background-color: #f0c040;
+  color: white;
+  border: none;
+  width: 100%;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+a {
+  font-size: 0.9rem;
+  color: #007bff;
+  text-align: right;
+  display: block;
+  margin-top: -10px;
+  margin-bottom: 15px;
+}
+
+.card {
+  max-width: 400px;
+  width: 100%;
+  padding: 20px;
+  background-color: #f8f8f8;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn {
+  color: white;
+  border: none;
+  width: 100%;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.far.fa-star {
+  top: 50%;
+  text-align: right;
+  transform: translateY(-50%);
+}
+
+.position-absolute {
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+}

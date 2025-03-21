@@ -1,0 +1,33 @@
+.swal2-container .form-label {
+    display: block;
+    text-align: left !important;
+  }
+  
+  /* Styles for the label */
+  .form-label {
+    color: black;
+    text-align: left;
+  }
+  
+  /* Styles for the input */
+  .form-control {
+    box-shadow: 0px 0px 5px 2px;
+  }
+  
+  /* Styles for the buttons */
+  .btn-outline-secondary.decrease-reorder,
+  .btn-outline-secondary.increase-reorder {
+      width: 50px; 
+      background: #dc7b09;
+      color: rgb(255, 255, 255);
+      font-weight: bold;
+      font-size: 16px;
+      border: 2px solid rgb(0, 0, 0);
+  }
+  
+  /* Styles for the input */
+  .form-control.text-center {
+      width: 50px;
+      box-shadow: none;
+      border: 2px solid rgb(0, 0, 0); /* Corrected border syntax */
+  }
