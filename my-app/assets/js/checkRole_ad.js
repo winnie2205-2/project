@@ -37,10 +37,12 @@ export async function roleAdmin() {
         // ✅ ตรวจสอบ role และทำการ redirect
         if (data.role === "Admin") {
             window.location.href = "/admin.html";
-        } else if (data.role === "employee") {
-            window.location.href = "/inventory.html";
+        } else if (data.role === "Employee") {
+            window.location.href = "/overview.html";
+        } else if (data.role === "Owner") {
+            window.location.href = "/overview.html"
         } else {
-            window.location.href = "/index.html";
+            window.location.href = "/loading.html";
         }
         
         

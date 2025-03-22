@@ -23,7 +23,7 @@ const authenticate = async (req, res, next) => {
 
         console.log('User Role:', user.role);
 
-        req.user = { role: user.role, username: user.username }; // แนบข้อมูลผู้ใช้ใน req
+        req.user = { role: user.role, username: user.username, object_id: user._id }; // แนบข้อมูลผู้ใช้ใน req
         
         next();
     } catch (error) {
@@ -36,6 +36,13 @@ const authenticate = async (req, res, next) => {
 const isAdmin = (req, res, next) => {
     if (!req.user || req.user.role !== "admin") {
         return res.status(403).json({ message: "Access denied" });
+    }
+    next();
+};
+
+const isEmployee = (req, res, next) => {
+    if (!req.user || req.user.role !== "employee") {
+        return res.status(403).json({ message: "Access denied. Employees only." });
     }
     next();
 };

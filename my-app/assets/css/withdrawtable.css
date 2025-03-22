@@ -1,0 +1,39 @@
+/* Scoped styles for the withdrawal popup */
+#popupContainer .btn-outline-secondary.decrease-qty,
+#popupContainer .btn-outline-secondary.increase-qty {
+    width: 50px; 
+    height: 50px; 
+    background: #dc7b09;
+    color: rgb(255, 255, 255);
+    font-weight: bold;
+    font-size: 16px;
+    border: 2px solid rgb(0, 0, 0);
+}
+
+#popupContainer .table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#popupContainer .table th,
+#popupContainer .table td {
+  padding: 10px;
+  text-align: center;
+  border: 1px solid #ddd;
+}
+
+#popupContainer .table th {
+  background-color: #f8f9fa;
+  font-weight: bold;
+}
+
+#popupContainer #withdraw-quantity {
+  caret-color: auto; /* Explicitly enable cursor */
+  cursor: text;      /* Show text cursor on hover */
+}
+
+/* If needed, you can add focus styles to make it more obvious */
+#popupContainer #withdraw-quantity:focus {
+  outline: 2px solid #28aa4a; /* Match your green color scheme */
+  box-shadow: 0 0 3px #28aa4a;
+}

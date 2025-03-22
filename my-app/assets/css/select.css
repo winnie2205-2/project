@@ -9,13 +9,6 @@
     font-size: 16px;
 }
 
-.file-upload-input {
-  border: 2px solid black; /* Border color */
-  border-radius: 5px; /* Rounded corners */
-  padding: 8px; /* Inner spacing */
-  width: 100%; /* Ensure it takes full width */
-}
-
 /* Dropdown styling */
 .dropdown-style {
     width: 100%; 

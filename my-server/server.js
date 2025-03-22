@@ -5,8 +5,10 @@ const path = require('path');
 const dotenv = require('dotenv');
 const multer = require('multer');
 const XLSX = require('xlsx');
+const csvParser = require('csv-parser');
+const fs = require('fs');
 const nodemailer = require('nodemailer');
-const crypto = require('crypto');
+const jwt = require("jsonwebtoken");
 const bcrypt = require('bcryptjs');
 const config = require('./config/config.js');
 
@@ -17,6 +19,7 @@ const categoryRoutes = require('./routes/categoryroute');
 
 const User = require('./models/userModel'); // Import User Model
 const Item = require('./models/itemModel'); 
+const Category = require('./models/categoryModel');
 
 
 
@@ -48,6 +51,7 @@ app.use('/api/categories', categoryRoutes);
 // Static Files
 const staticDirectory = path.join(__dirname, '../my-app');
 app.use(express.static(staticDirectory));
+app.use(express.static('assets'));
 
 // ✅ แก้ไขเส้นทางสำหรับหน้า Inventory
 app.get('/inventory.html', authenticate, (req, res) => {
@@ -59,68 +63,77 @@ app.get("/admin.html", authenticate, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
-// ✅ Forgot Password API (แก้ไข)
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    service: "gmail",
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
-
-app.post('/api/forgot-password', async (req, res) => {
-    const { email } = req.body;
-
-    try {
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(404).json({ message: 'Email not found' });
-        }
-
-        const resetToken = crypto.randomBytes(32).toString('hex');
-        user.resetToken = resetToken;
-        user.resetTokenExpiry = Date.now() + 3600000; // 1 ชั่วโมง
-        await user.save();
-
-        const resetLink = `http://localhost:5000/reset-password/${resetToken}`;
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: user.email,
-            subject: 'Password Reset Request',
-            text: `Click this link to reset your password: ${resetLink}`,
-        };
-
-        await transporter.sendMail(mailOptions);
-        res.json({ message: 'Password reset email sent' });
-    } catch (error) {
-        res.status(500).json({ error: 'Error sending reset email' });
+        user: "nasaza300@gmail.com",
+        pass: "ewbx wlyn iveg ismm"
     }
 });
 
-// ✅ Reset Password API (เพิ่ม bcrypt)
-app.post('/api/reset-password', async (req, res) => {
-    const { token, newPassword } = req.body;
-
+// ✅ API ขอรีเซ็ตรหัสผ่าน
+app.post("/api/forgot-password", async (req, res) => {
     try {
-        const user = await User.findOne({
-            resetToken: token,
-            resetTokenExpiry: { $gt: Date.now() },
-        });
-
-        if (!user) {
-            return res.status(400).json({ message: 'Invalid or expired token' });
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ error: "❌ ต้องระบุอีเมล" });
         }
 
-        // เข้ารหัสรหัสผ่านก่อนบันทึก
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(newPassword, salt);
-        user.resetToken = undefined;
-        user.resetTokenExpiry = undefined;
-        await user.save();
+        // ค้นหาผู้ใช้จากฐานข้อมูล
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ error: "❌ ไม่พบอีเมลนี้ในระบบ" });
+        }
 
-        res.json({ message: 'Password has been reset successfully' });
+        // ✅ สร้าง JWT Token
+        const token = jwt.sign({ id: user._id }, "secret-key", { expiresIn: "15m" });
+        const resetLink = `http://localhost:5000/resetpass.html?token=${token}`;
+
+        // ✅ กำหนดค่าอีเมลที่ส่งออกไป
+        const mailOptions = {
+            from: "nasaza300@gmail.com",
+            to: email,
+            subject: "🔐 รีเซ็ตรหัสผ่านของคุณ",
+            html: `<p>คลิกลิงก์ด้านล่างเพื่อเปลี่ยนรหัสผ่านของคุณ:</p>
+                   <p><a href="${resetLink}">${resetLink}</a></p>
+                   <p>ลิงก์นี้จะหมดอายุภายใน 15 นาที</p>`
+        };
+
+        // ✅ ส่งอีเมล
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("❌ Error sending email:", error);
+                return res.status(500).json({ error: "❌ ไม่สามารถส่งอีเมลได้" });
+            }
+            res.json({ message: "✅ กรุณาตรวจสอบอีเมลของคุณเพื่อตั้งค่ารหัสผ่านใหม่" });
+        });
+
     } catch (error) {
-        res.status(500).json({ error: 'Error resetting password' });
+        console.error("❌ Error in forgot-password:", error);
+        res.status(500).json({ error: "❌ มีข้อผิดพลาดบางอย่าง กรุณาลองใหม่" });
+    }
+});
+
+
+// ✅ API ตั้งรหัสผ่านใหม่
+app.post("/api/reset-password", async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+
+        // ✅ ตรวจสอบ Token
+        const decoded = jwt.verify(token, "secret-key");
+
+        // ✅ เข้ารหัสรหัสผ่านใหม่
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // ✅ อัปเดตรหัสผ่านในฐานข้อมูล
+        await User.findByIdAndUpdate(decoded.id, { password: hashedPassword });
+
+        res.json({ message: "✅ รหัสผ่านของคุณถูกเปลี่ยนเรียบร้อยแล้ว!" });
+
+    } catch (error) {
+        console.error("❌ Error in reset-password:", error);
+        res.status(400).json({ error: "❌ ลิงก์หมดอายุหรือไม่ถูกต้อง" });
     }
 });
 
@@ -136,49 +149,6 @@ app.get('/search', authenticate, async (req, res) => {
         res.json(items);
     } catch (error) {
         res.status(500).json({ error: "Error fetching items" });
-    }
-});
-
-// ✅ อัปโหลดไฟล์ Excel (ตรวจสอบโครงสร้างข้อมูล)
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname));
-    },
-});
-
-const upload = multer({ storage: storage });
-
-app.post('/api/upload-excel', upload.single('file'), async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    try {
-        const filePath = path.join(__dirname, 'uploads', req.file.filename);
-        const workbook = XLSX.readFile(filePath);
-        const sheetNames = workbook.SheetNames;
-        const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetNames[0]]);
-
-        // ตรวจสอบและแปลงข้อมูลให้ตรงกับ itemSchema
-        const formattedData = data.map(item => ({
-            id: item.id ? String(item.id) : new Date().getTime().toString(), // ใช้ timestamp เป็นค่า default
-            name: item.name || "Unnamed",
-            location: item.location || "Unknown",
-            qty: item.qty ? Number(item.qty) : 0,
-            price: item.price ? Number(item.price) : 0,
-            status: item.status === 'Enable' || item.status === 'Disable' ? item.status : 'Enable',
-            reorderPoint: item.reorderPoint ? Number(item.reorderPoint) : 0
-        }));
-
-        const items = await Item.insertMany(formattedData);
-
-        res.json({ message: 'Items uploaded successfully', items });
-    } catch (error) {
-        console.error('Error uploading excel file:', error);
-        res.status(500).json({ error: 'Error uploading items from Excel' });
     }
 });
 
@@ -236,6 +206,105 @@ app.post('/api/users/add', async (req, res) => {
     } catch (error) {
         console.error("Error creating user:", error);
         res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเพิ่มผู้ใช้' });
+    }
+});
+
+// Remove the second declaration of 'upload'
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/');
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage: storage });
+
+// ตรวจสอบว่าโฟลเดอร์ uploads มีอยู่หรือไม่ ถ้าไม่มีให้สร้าง
+if (!fs.existsSync('uploads')) {
+    fs.mkdirSync('uploads');
+}
+
+// ฟังก์ชันบันทึกข้อมูลลงฐานข้อมูล
+const saveToDatabase = async (importedData, res, fileType) => {
+    try {
+        for (let data of importedData) {
+            let category = await Category.findOne({ categoryName: data.categoryName });
+
+            if (!category) {
+                category = new Category({ categoryName: data.categoryName });
+                await category.save();
+                console.log("Category created:", category.categoryName);
+            }
+
+            const item = new Item({
+                categoryID: category._id,
+                name: data.Name,
+                location: data.Location,
+                qty: parseInt(data.qty) || 0, // ถ้าไม่มีค่าจะใส่ 0
+                price: parseFloat(
+                    typeof data.price === 'string' ? data.price.replace(/,/g, '') : data.price
+                ) || 0, // ถ้าไม่มีค่าจะใส่ 0
+                status: data.Status || 'Unavailable',
+                reorderPoint: data['Reorder point'] ? parseInt(data['Reorder point']) : null
+            });
+
+            await item.save();
+            console.log("Item saved successfully:", item);
+        }
+
+        res.status(200).json({ message: 'Data imported successfully' });
+    } catch (error) {
+        console.error("Error during import:", error);
+        res.status(500).json({ error: 'Failed to import data' });
+    }
+};
+
+
+// API สำหรับอัปโหลดไฟล์และนำเข้าข้อมูล
+app.post('/api/import', upload.single('file'), async (req, res) => {
+    if (!req.file) {
+        console.error('No file uploaded');
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const fileType = req.body.fileType;
+    const filePath = req.file.path;
+
+    console.log('File uploaded successfully:', req.file);
+
+    try {
+        let importedData = [];
+
+        if (fileType === 'Excel(CSV)' && path.extname(filePath) === '.csv') {
+            const results = [];
+            fs.createReadStream(filePath)
+                .pipe(csvParser())
+                .on('data', (data) => results.push(data))
+                .on('end', async () => {
+                    console.log('CSV Data:', results);
+                    importedData = results;
+                    await saveToDatabase(importedData, res, 'CSV');
+                })
+                .on('error', (err) => {
+                    console.error('Error reading CSV file:', err);
+                    res.status(500).json({ error: 'Error reading CSV file' });
+                });
+        } else if (fileType === 'Excel' && (path.extname(filePath) === '.xls' || path.extname(filePath) === '.xlsx')) {
+            const workbook = XLSX.readFile(filePath);
+            const sheetName = workbook.SheetNames[0];
+            const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+            console.log('Excel Data:', data);
+            importedData = data;
+
+            await saveToDatabase(importedData, res, 'Excel');
+        } else {
+            return res.status(400).json({ error: 'Unsupported file type' });
+        }
+    } catch (error) {
+        console.error('Error importing data:', error);
+        res.status(500).json({ error: 'Failed to import data', details: error.message });
     }
 });
 

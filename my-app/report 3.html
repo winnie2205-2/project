@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <title>project design</title>
-    <link rel="stylesheet" href="assets/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css">
     <link rel="stylesheet" href="assets/fonts/font-awesome.min.css">
     <link rel="stylesheet" href="assets/fonts/material-icons.min.css">
     <link rel="stylesheet" href="assets/css/style.css">
@@ -20,101 +20,133 @@
                 </div>
                 <div class="d-flex flex-column">
                     <ul class="nav nav-tabs flex-column mb-3" style="margin-left: 30px;margin-top: 50px;">
-                        <li class="nav-item d-flex align-items-center" style="height: 45px; margin-bottom: 20px;">
-                            <i class="fa fa-home" style="font-size: 24px; margin-right: 8px;"></i>
-                            <a class="nav-link" href="Overview.html" style="color: rgb(0,0,0); font-size: 20px; font-weight: bold;">Overview</a>
+                        <li id="overviewNav" class="nav-item" style="height: 45px; margin-bottom: 20px;">
+                            <a class="nav-link d-flex align-items-center w-100" href="Overview.html" style="color: rgb(0,0,0); font-size: 20px; font-weight: bold; text-decoration: none; padding: 10px;">
+                                <i class="fa fa-home" style="font-size: 24px; margin-right: 8px;"></i> Overview
+                            </a>
                         </li>
-                        <li class="nav-item d-flex align-items-center " style="height: 45px;margin-bottom: 20px;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" style="width: 24px;height: 24px;">
-                                <path d="M10 12C9.44769 12 9 12.4477 9 13C9 13.5523 9.44769 14 10 14H14C14.5522 14 15 13.5523 15 13C15 12.4477 14.5522 12 14 12H10Z" fill="currentColor"></path>
-                                <path fill-rule="evenodd" clip-rule="evenodd" d="M4 2C2.34314 2 1 3.34314 1 5V19C1 20.6569 2.34314 22 4 22H20C21.6569 22 23 20.6569 23 19V5C23 3.34314 21.6569 2 20 2H4ZM20 4H4C3.44769 4 3 4.44769 3 5V8H21V5C21 4.44769 20.5522 4 20 4ZM3 19V10H21V19C21 19.5523 20.5522 20 20 20H4C3.44769 20 3 19.5523 3 19Z" fill="currentColor"></path>
-                            </svg><a class="nav-link" href="inventory.html" style="color: rgb(0,0,0);font-size: 20px;font-weight: bold;">Inventory</a></li>
-                        <li class="nav-item d-flex align-items-center " style="height: 45px;margin-bottom: 20px;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 20 20" fill="none" style="width: 24px;height: 24px;">
-
-                                <path fill-rule="evenodd" clip-rule="evenodd" d="M10 9C11.6569 9 13 7.65685 13 6C13 4.34315 11.6569 3 10 3C8.34315 3 7 4.34315 7 6C7 7.65685 8.34315 9 10 9ZM3 18C3 14.134 6.13401 11 10 11C13.866 11 17 14.134 17 18H3Z" fill="currentColor"></path>
-                            </svg><a class="nav-link" href="admin.html" style="color: rgb(0,0,0);font-size: 20px;font-weight: bold;">User Management</a></li>
-                        <li class="nav-item d-flex align-items-center " style="height: 45px;margin-bottom: 20px;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-box-arrow-right" style="width: 24px;height: 24px;">
-                                <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"></path>
-                                <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"></path>
-                            </svg><a class="nav-link" href="user-logg.html" style="color: rgb(0,0,0);font-size: 20px;font-weight: bold;">User-log</a></li>
-                        <li class="nav-item d-flex align-items-center " style="height: 45px;margin-bottom: 20px;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 20 20" fill="none" style="width: 24px;height: 24px;">
-                                <path fill-rule="evenodd" clip-rule="evenodd" d="M5 3C3.89543 3 3 3.89543 3 5V15C3 16.1046 3.89543 17 5 17H15C16.1046 17 17 16.1046 17 15V5C17 3.89543 16.1046 3 15 3H5ZM14 7C14 6.44772 13.5523 6 13 6C12.4477 6 12 6.44772 12 7V13C12 13.5523 12.4477 14 13 14C13.5523 14 14 13.5523 14 13V7ZM11 9C11 8.44772 10.5523 8 10 8C9.44772 8 9 8.44772 9 9V13C9 13.5523 9.44772 14 10 14C10.5523 14 11 13.5523 11 13V9ZM8 12C8 11.4477 7.55228 11 7 11C6.44772 11 6 11.4477 6 12V13C6 13.5523 6.44772 14 7 14C7.55228 14 8 13.5523 8 13V12Z" fill="currentColor"></path>
-                            </svg><a class="nav-link" href="report%201.html" style="font-size: 20px;font-weight: bold;color: rgb(0,0,0);">Report</a></li>
-                        <li class="nav-item d-flex align-items-center " style="height: 45px;margin-bottom: 20px;"><a class="nav-link" href="report%202.html" style="font-size: 20px;font-weight: bold;color: rgb(0,0,0);margin-left: 20px;">Withdrawn Report</a></li>
-                        <li class="nav-item d-flex align-items-center " style="height: 45px;margin-bottom: 20px;margin-left: 0px;"><a class="nav-link active" href="report%203.html" style="font-size: 20px;font-weight: bold;color: rgb(0,0,0);margin-left: 20px;">Replenishment Report</a></li>
-                        <li class="nav-item d-flex align-items-center "><i class="material-icons">settings</i><a class="nav-link" href="setting.html" style="color: rgb(0,0,0);font-size: 20px;font-weight: bold;">Setting</a></li>
+                        <li id="inventoryNav" class="nav-item" style="height: 45px; margin-bottom: 20px;">
+                            <a class="nav-link align-items-center w-100" href="inventory.html" style="color: rgb(0,0,0); font-size: 20px; font-weight: bold; text-decoration: none; padding: 10px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin-right: 8px;">
+                                    <path d="M10 12C9.44769 12 9 12.4477 9 13C9 13.5523 9.44769 14 10 14H14C14.5522 14 15 13.5523 15 13C15 12.4477 14.5522 12 14 12H10Z" fill="currentColor"></path>
+                                    <path fill-rule="evenodd" clip-rule="evenodd" d="M4 2C2.34314 2 1 3.34314 1 5V19C1 20.6569 2.34314 22 4 22H20C21.6569 22 23 20.6569 23 19V5C23 3.34314 21.6569 2 20 2H4ZM20 4H4C3.44769 4 3 4.44769 3 5V8H21V5C21 4.44769 20.5522 4 20 4ZM3 19V10H21V19C21 19.5523 20.5522 20 20 20H4C3.44769 20 3 19.5523 3 19Z" fill="currentColor"></path>
+                                </svg> Inventory
+                            </a>
+                        </li>
+                        <li id="userManagementNav" class="nav-item" style="height: 45px; margin-bottom: 20px;">
+                            <a class="nav-link d-flex align-items-center w-100" href="admin.html" style="color: rgb(0,0,0); font-size: 20px; font-weight: bold; text-decoration: none; padding: 10px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 20 20" fill="none" style="margin-right: 8px;">
+                                    <path fill-rule="evenodd" clip-rule="evenodd" d="M10 9C11.6569 9 13 7.65685 13 6C13 4.34315 11.6569 3 10 3C8.34315 3 7 4.34315 7 6C7 7.65685 8.34315 9 10 9ZM3 18C3 14.134 6.13401 11 10 11C13.866 11 17 14.134 17 18H3Z" fill="currentColor"></path>
+                                </svg> User Management
+                            </a>
+                        </li>
+                        <li id="userLogNav" class="nav-item" style="height: 45px; margin-bottom: 20px;">
+                            <a class="nav-link d-flex align-items-center w-100" href="user-logg.html" style="color: rgb(0,0,0); font-size: 20px; font-weight: bold; text-decoration: none; padding: 10px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16" class="bi bi-box-arrow-right" style="margin-right: 8px;">
+                                    <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"></path>
+                                    <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"></path>
+                                </svg> User Log
+                            </a>
+                        </li>
+                        <li id="reportNav" class="nav-item" style="height: 45px; margin-bottom: 20px;">
+                            <a class="nav-link d-flex align-items-center w-100" href="report%201.html" style="font-size: 20px; font-weight: bold; color: rgb(0,0,0); text-decoration: none; padding: 10px;">
+                                <i class="fa fa-file-text" style="font-size: 24px; margin-right: 8px;"></i> Report
+                            </a>
+                        </li>
+                        <li id="withdrawnNav" class="nav-item" style="height: 45px; margin-bottom: 20px;">
+                            <a class="nav-link d-flex align-items-center w-100" href="report 2.html" style="font-size: 20px; font-weight: bold; color: rgb(0,0,0); text-decoration: none; padding: 10px;">
+                                <i class="fa fa-file-text-o" style="font-size: 24px; margin-right: 8px;"></i> Inventory Withdrawal Report
+                            </a>
+                        </li>
+                        <li id="replenishmentNav" class="nav-item" style="height: 45px; margin-bottom: 20px;">
+                            <a class="nav-link active d-flex align-items-center w-100" href="report%203.html" style="font-size: 20px; font-weight: bold; color: rgb(0,0,0); text-decoration: none; padding: 10px;">
+                                <i class="fa fa-refresh" style="font-size: 24px; margin-right: 8px;"></i> Low-stock Report
+                            </a>
+                        </li>
+                        <li id="settingNav" class="nav-item">
+                            <a class="nav-link d-flex align-items-center w-100" href="setting.html" style="color: rgb(0,0,0); font-size: 20px; font-weight: bold; text-decoration: none; padding: 10px;">
+                                <i class="material-icons" style="margin-right: 8px;">settings</i> Setting
+                            </a>
+                        </li>
                     </ul>
-                </div>
-                <div style="width: 350px;margin-left: 10px;"><a class="btn d-flex align-items-center align-content-center d-flex" role="button" style="text-align: justify;margin-top: 10px;font-size: 20px;font-weight: bold;color: #ca0000;border-right-style: none;background: rgba(240,192,64,0);margin-left: 5px;" href="index.html"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="d-flex justify-content-center align-items-center align-content-center me-2" style="width: 24px;height: 24px;text-align: justify;">
+                </div>              
+                <div style="width: 350px; margin-left: 10px;">
+                    <button id="logoutBtn" class="btn d-flex align-items-center align-content-center d-flex"
+                        style="text-align: justify; margin-top: 100px; font-size: 20px; font-weight: bold; color: #ca0000; border-right-style: none; background: rgba(240,192,64,0); margin-left: 5px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="d-flex justify-content-center align-items-center align-content-center me-2"
+                            style="width: 24px; height: 24px; text-align: justify;">
                             <path d="M13 4.00894C13.0002 3.45665 12.5527 3.00876 12.0004 3.00854C11.4481 3.00833 11.0002 3.45587 11 4.00815L10.9968 12.0116C10.9966 12.5639 11.4442 13.0118 11.9965 13.012C12.5487 13.0122 12.9966 12.5647 12.9968 12.0124L13 4.00894Z" fill="currentColor"></path>
                             <path d="M4 12.9917C4 10.7826 4.89541 8.7826 6.34308 7.33488L7.7573 8.7491C6.67155 9.83488 6 11.3349 6 12.9917C6 16.3054 8.68629 18.9917 12 18.9917C15.3137 18.9917 18 16.3054 18 12.9917C18 11.3348 17.3284 9.83482 16.2426 8.74903L17.6568 7.33481C19.1046 8.78253 20 10.7825 20 12.9917C20 17.41 16.4183 20.9917 12 20.9917C7.58172 20.9917 4 17.41 4 12.9917Z" fill="currentColor"></path>
-                        </svg>Logout</a></div>
+                        </svg>
+                        Logout
+                    </button>
+                </div>                
             </div>
             <div class="col-9 flex-grow-0">
                 <div class="d-flex flex-row justify-content-between align-items-start align-content-center w-100" style="margin-left: 450px;">
-                    <div class="input-group ps-3" style="width: auto;border-style: none;margin-top: 20px;"><button class="btn btn-primary btn-warning input-group" type="button" style="width: 50px;background: rgb(255,255,255);border: 2px solid rgb(0,0,0);border-right-style: none;border-right-color: rgb(255,255,255);"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 20 20" fill="none" class="input-group" style="background: #ffffff;color: rgb(0,0,0);border-top-left-radius: 5px;border-bottom-left-radius: 5px;">
-
+                    <div class="input-group ps-3" style="width: auto;border-style: none;margin-top: 20px;">
+                        <button class="btn btn-primary btn-warning input-group" type="button" style="width: 50px;background: rgb(255,255,255);border: 2px solid rgb(0,0,0);border-right-style: none;border-right-color: rgb(255,255,255);">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 20 20" fill="none" class="input-group" style="background: #ffffff;color: rgb(0,0,0);border-top-left-radius: 5px;border-bottom-left-radius: 5px;">
                                 <path fill-rule="evenodd" clip-rule="evenodd" d="M8 4C5.79086 4 4 5.79086 4 8C4 10.2091 5.79086 12 8 12C10.2091 12 12 10.2091 12 8C12 5.79086 10.2091 4 8 4ZM2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8C14 9.29583 13.5892 10.4957 12.8907 11.4765L17.7071 16.2929C18.0976 16.6834 18.0976 17.3166 17.7071 17.7071C17.3166 18.0976 16.6834 18.0976 16.2929 17.7071L11.4765 12.8907C10.4957 13.5892 9.29583 14 8 14C4.68629 14 2 11.3137 2 8Z" fill="currentColor"></path>
-                            </svg></button>
-                        <form class="align-items-center"><input class="form-control align-items-center input-group" type="text" style="width: 300px;height: 44px;border-radius: 0px;border-top-right-radius: 5px;border-bottom-right-radius: 5px;border: 2px solid rgb(0,0,0) ;border-left-style: none;border-left-color: rgb(255,255,255);" placeholder="Search..."></form>
+                            </svg>
+                        </button>
+                        <form class="align-items-center">
+                            <input class="form-control align-items-center input-group" type="text" id="searchInput" style="width: 300px;height: 44px;border-radius: 0px;border-top-right-radius: 5px;border-bottom-right-radius: 5px;border: 2px solid rgb(0,0,0);border-left-style: none;border-left-color: rgb(255,255,255);" placeholder="Search...">
+                        </form>
                     </div>
-                    <div class="d-flex justify-content-start align-items-center ps-3" style="background: #ffffff;width: 150px;border-radius: 5px;margin-top: 10px;height: 45px;border-width: 2px;border-style: solid;" style="width: 20px;height: 20px;">
+                    <div class="d-flex justify-content-center align-items-center ps-3" style="background: #ffffff;width: 150px;border-radius: 5px;margin-top: 10px;height: 45px;border-width: 2px;border-style: solid;">
                         <img id="userImage" class="rounded-circle me-2" style="width: 30px; height: 30px;">
-                        <p class="d-inline me-2 align-middle" id="Userbar"></p>
-                    </div>
+                        <p class="d-inline me-2 align-middle mb-0" id="Userbar"></p>
+                    </div>                    
                 </div>
-                <div class="row align-items-center w-100" style="margin-left: 450px;margin-top: 30px;margin-right: 0px;">
-                    <div class="col" id="Products" style="padding: 0px;">
-                        <h1 style="font-weight: bold;margin: 0px;">Report</h1>
-                    </div>
-                    <div class="col-auto" style="margin-right: 0px;padding: 0px;padding-right: 40px;">
-                        <div class="btn-group justify-content-end" role="group"><button onclick="showexport()" id="Export"  class="btn btn-primary align-items-center me-2 d-flex" type="button" style="width: 140px;border-radius: 5px;background: #ebe3ce;color: rgb(0,0,0);font-weight: bold;border-style: solid;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="d-flex align-items-center me-2" style="width: 24px;height: 24px;">
-                                    <path d="M15.6396 7.02527H12.0181V5.02527H19.0181V12.0253H17.0181V8.47528L12.1042 13.3892L10.6899 11.975L15.6396 7.02527Z" fill="currentColor"></path>
-                                    <path d="M10.9819 6.97473H4.98193V18.9747H16.9819V12.9747H14.9819V16.9747H6.98193V8.97473H10.9819V6.97473Z" fill="currentColor"></path>
-                                </svg>Export</button></div>
-                    </div>
+            </div>
+            <div class="row align-items-center w-100" style="margin-left: 450px; margin-top: 30px;">
+                <div class="col" id="Products" style="padding: 0px;">
+                    <h1 style="font-weight: bold;margin: 0px;">Report</h1>
+                </div>
+                <div class="col-auto" style="padding: 0; margin-right: 500px;">
+                    <div class="btn-group justify-content-end" role="group"><button onclick="showLowStockExport()" id="Export"  class="btn btn-primary align-items-center me-2 d-flex" type="button" style="width: 140px;border-radius: 5px;background: #ebe3ce;color: rgb(0,0,0);font-weight: bold;border-style: solid;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="d-flex align-items-center me-2" style="width: 24px;height: 24px;">
+                                <path d="M15.6396 7.02527H12.0181V5.02527H19.0181V12.0253H17.0181V8.47528L12.1042 13.3892L10.6899 11.975L15.6396 7.02527Z" fill="currentColor"></path>
+                                <path d="M10.9819 6.97473H4.98193V18.9747H16.9819V12.9747H14.9819V16.9747H6.98193V8.97473H10.9819V6.97473Z" fill="currentColor"></path>
+                            </svg>Export</button></div>
+                </div>
+            </div>
                 </div>
                 <div id="content-box" style="padding: 10px;box-shadow: 0px 0px 10px;width: 1400px;background: #ffffff;margin: 200px;height: 675px;margin-left: 450px;margin-top: 5px;margin-bottom: 0px;border-radius: 10px;">
                     <div class="table-responsive" style="width: 1370px;margin-top: 0px;">
                         <table class="table">
                             <thead style="background: #d9d9d9;">
                                 <tr style="background: #d9d9d9;">
-                                    <th class="text-center" style="width: 50px;background: #d9d9d9;font-size: 18px;font-weight: bold;">#</th>
-                                    <th class="text-center" style="width: 150px;background: #d9d9d9;font-size: 18px;font-weight: bold;">ID</th>
-                                    <th class="text-center" style="width: 150px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Name</th>
-                                    <th class="text-center" style="width: 150px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Location</th>
-                                    <th class="text-center" style="width: 150px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Quantity</th>
-                                    <th class="text-center" style="width: 200px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Prices(THB)/ Product</th>
-                                    <th class="text-center" style="width: 150px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Replenishment</th>
-                                    <th class="text-center" style="width: 200px;background: #d9d9d9;font-size: 18px;">Replenishment Date</th>
+                                    <th class="text-left" style="width: 100px;background: #d9d9d9;font-size: 18px;font-weight: bold;">ID</th>
+                                    <th class="text-left" style="width: 350px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Name</th>
+                                    <th class="text-left" style="width: 100px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Location</th>
+                                    <th class="text-end" style="width: 50px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Quantity</th>
+                                    <th class="text-end" style="width: 200px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Prices(THB)/ Product</th>
+                                    <th class="text-end" style="width: 150px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Low-stock</th>
+                                    <th class="text-center" style="width: 200px;background: #d9d9d9;font-size: 18px;">Low-stock Date</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr></tr>
-                                <tr></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <nav class="pagination-rounded" style="margin-left: 1050px;margin-top: 30px;padding: 3px;margin-bottom: -12px;height: 40px;">
-                    <ul class="pagination">
-                        <li class="page-item"><a class="page-link" aria-label="Previous" href="#"><span aria-hidden="true">«</span></a></li>
-                        <li class="page-item"><a class="page-link" href="#">1</a></li>
-                        <li class="page-item"><a class="page-link" href="#">2</a></li>
-                        <li class="page-item"><a class="page-link" href="#">3</a></li>
-                        <li class="page-item"><a class="page-link" href="#">4</a></li>
-                        <li class="page-item"><a class="page-link" href="#">5</a></li>
-                        <li class="page-item"><a class="page-link" aria-label="Next" href="#"><span aria-hidden="true">»</span></a></li>
-                    </ul>
-                </nav>
+                            <tbody id="report-items-body"></tbody>
+                          </table>
+                        </div>
+                      </div>
+                      
+                      <!-- Pagination Below Content Box -->
+                      <nav class="pagination-rounded d-flex justify-content-center mt-4" style="margin-left: 500px;">
+                        <ul class="pagination">
+                          <!-- Pagination buttons will be dynamically inserted here -->
+                        </ul>
+                      </nav>
             </div>
         </div>
     </div>
-    <script src="assets/bootstrap/js/bootstrap.min.js"></script>
-    <script src="assets/js/style.js"></script>
-    <script src="assets/js/Export.js"></script>
+    <script src="bootstrap/js/bootstrap.min.js"></script>
+    <script src="assets/js/Export3.js"></script>
+    <script src="assets/js/navbar.js"></script>
+    <script src="assets/js/logout.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.9/flatpickr.min.js"></script>
+    <script src="assets/js/report3.js"></script>
 </body>
-
 </html>

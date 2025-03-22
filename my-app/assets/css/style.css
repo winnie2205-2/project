@@ -23,6 +23,8 @@
   width: 100%;
   padding: 10px;
   border-radius: 5px;
+  position: relative;
+  z-index: 100;
 }
 
 .far.fa-star {
@@ -64,8 +66,88 @@ html, body {
   overflow-x: hidden;
 }
 
+.invisible {
+  visibility: hidden; /* Makes the element invisible but keeps its space */
+}
+
+.nav-item {
+  display: inline-block; /* Display items inline */
+  margin-right: 10px; /* Adjust spacing between items */
+}
+
+/*table fix*/
+td.text-center {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px; /* Adjust as needed */
+}
+
+/* Add this to your CSS file */
+.page-item.active .page-link {
+  background-color: #007bff; /* Bootstrap primary color */
+  border-color: #007bff;
+  color: white;
+}
+
+.page-item.disabled .page-link {
+  pointer-events: none; /* Disable click events */
+  opacity: 0.6; /* Make it look disabled */
+  cursor: not-allowed; /* Show not-allowed cursor */
+}
+
+/* Disable cursor for non-input elements */
+body *:not(input):not(textarea):not([contenteditable]):not(button):not(select):not([role="button"]):not([role="checkbox"]):not([role="radio"]):not([type="search"]) {
+  caret-color: transparent;
+}
+input, textarea, select {
+  caret-color: auto !important;
+}
 
 
 
+#reorderPoint {
+  caret-color: auto; /* Explicitly enable cursor */
+  cursor: text;      /* Show text cursor on hover */
+}
+
+/* If needed, you can add focus styles to make it more obvious */
+#reorderPoint:focus {
+  outline: 2px solid #28aa4a; /* Match your green color scheme */
+  box-shadow: 0 0 3px #28aa4a;
+}
+
+.checkbox-buttons-container {
+  display: flex;
+  align-items: center;
+  gap: 5px; /* Small gap between buttons */
+  margin-left: 5px; /* Adjust alignment */
+}
 
 
+/* Checkbox styling */
+#selectAllCheckbox {
+  width: 25px;
+  height: 25px;
+  flex-shrink: 0;
+}
+
+/* Center the checkbox in each item row */
+.item-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: auto; /* Ensures centering */
+}
+
+#withdrawButton, #deleteButton {
+  border: none; /* Remove border */
+  margin-left: 5px; 
+  background: transparent; /* Remove background */
+  padding: 0; /* Remove extra padding */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

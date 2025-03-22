@@ -1,77 +1,141 @@
-const ForgotPassword = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('forgotForm');
+  const emailInput = document.getElementById('emailInput');
+  const emailError = document.getElementById('emailError');
 
-  const handleResetPassword = async () => {
-    if (!email || !password || !newPassword) {
-      Swal.fire("Error", "Please fill all fields", "error");
-      return;
-    }
+  form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const email = emailInput.value.trim();
+      emailError.style.display = 'none';
+      emailInput.style.borderColor = '#000';
 
-    try {
-      const response = await fetch("http://localhost:5000/api/user/reset-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password, newPassword }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        Swal.fire("Success", data.message, "success");
-      } else {
-        Swal.fire("Error", data.error || "Something went wrong", "error");
+      // Basic validation
+      if (!email) {
+          showEmailError('โปรดระบุอีเมล');
+          return;
       }
-    } catch (error) {
-      Swal.fire("Error", "Failed to connect to server", "error");
-    }
-  };
 
-  return (
-    <div className="container-fluid" style={{ background: "#b3c799" }}>
-      <div className="row">
-        <div className="col-md-7 col-xl-6 left-column">
-          <img src="/assets/img/log%20sky.png" alt="Logo" style={{ width: "100px", margin: "20px" }} />
-        </div>
-        <div className="col-md-5 d-flex justify-content-center align-items-center p-4">
-          <div className="card" style={{ width: "485px", padding: "20px", background: "#EBE3CE", height: "540px" }}>
-            <div className="card-body">
-              <h4 className="card-title" style={{ fontWeight: "bold", fontSize: "55px" }}>Forgot Password?</h4>
-              <input
-                className="form-control mb-2"
-                type="email"
-                placeholder="Gmail"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <input
-                className="form-control mb-2"
-                type="password"
-                placeholder="Current Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <input
-                className="form-control mb-2"
-                type="password"
-                placeholder="New Password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-              <button className="btn btn-warning w-100 py-2" onClick={handleResetPassword}>
-                Reset Password
-              </button>
-              <a href="/index.html" className="d-flex align-items-center me-2 ms-2" style={{ color: "#000", fontWeight: "bold", fontSize: "25px" }}>
-                <i className="icon ion-android-arrow-back d-flex align-items-center me-2"></i>Back to login
-              </a>
-            </div>
+      // Email format validation
+      if (!validateEmail(email)) {
+          showEmailError('รูปแบบอีเมลไม่ถูกต้อง');
+          return;
+      }
+
+      try {
+          const response = await fetch('/api/forgot-password', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ email })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+              throw new Error(data.error || 'เกิดข้อผิดพลาดในการส่งอีเมล');
+          }
+
+          Swal.fire({
+              icon: 'success',
+              title: 'ส่งอีเมลเรียบร้อย!',
+              html: `กรุณาตรวจสอบอีเมล <strong>${email}</strong><br>เพื่อตั้งค่ารหัสผ่านใหม่`,
+              confirmButtonText: 'ตกลง'
+          });
+
+      } catch (error) {
+          showEmailError(error.message);
+      }
+  });
+
+  function showEmailError(message) {
+      emailInput.style.borderColor = '#dc3545';
+      emailError.textContent = message;
+      emailError.style.display = 'block';
+  }
+
+  function validateEmail(email) {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(email);
+  }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+  const form = document.getElementById('resetForm');
+
+  if (!token) {
+      form.innerHTML = `
+          <div class="alert alert-danger" role="alert">
+              ลิงก์รีเซ็ตรหัสผ่านไม่ถูกต้อง กรุณาขอลิงก์ใหม่
           </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+      `;
+      return;
+  }
 
-export default ForgotPassword;
+  form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      let isValid = true;
+
+      // Clear errors
+      document.querySelectorAll('.text-danger').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.form-control').forEach(el => el.style.borderColor = '#000');
+
+      // Validate password
+      if (newPassword.length < 8) {
+          showError('passwordError', 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร', 'newPassword');
+          isValid = false;
+      }
+
+      // Validate match
+      if (newPassword !== confirmPassword) {
+          showError('confirmError', 'รหัสผ่านไม่ตรงกัน', 'confirmPassword');
+          isValid = false;
+      }
+
+      if (!isValid) return;
+
+      try {
+          const response = await fetch('/api/reset-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token, newPassword })
+          });
+
+          const data = await response.json();
+          
+          if (!response.ok) {
+              throw new Error(data.error || 'รีเซ็ตรหัสผ่านไม่สำเร็จ');
+          }
+
+          Swal.fire({
+              title: 'สำเร็จ!',
+              text: 'ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว',
+              icon: 'success',
+              confirmButtonText: 'เข้าสู่ระบบ'
+          }).then(() => {
+              window.location.href = 'index.html';
+          });
+
+      } catch (error) {
+          Swal.fire({
+              title: 'เกิดข้อผิดพลาด!',
+              text: error.message,
+              icon: 'error',
+              confirmButtonText: 'ตกลง'
+          });
+      }
+  });
+
+  function showError(elementId, message, inputId) {
+      const errorDiv = document.getElementById(elementId);
+      document.getElementById(inputId).style.borderColor = '#dc3545';
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+  }
+});

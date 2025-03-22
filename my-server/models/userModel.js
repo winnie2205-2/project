@@ -14,6 +14,9 @@ const userSchema = new mongoose.Schema({
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
 
+    // ✅ เพิ่มสถานะของผู้ใช้
+    status: { type: String, enum: ["enable", "disable"], default: "enable" },
+
     // ✅ เพิ่ม Logs เก็บประวัติการใช้งานของ User
     activityLogs: [
         {
@@ -28,19 +31,43 @@ const userSchema = new mongoose.Schema({
     timestamps: true
 });
 
+userSchema.pre("save", async function (next) {
+    if (this.isModified("password")) {
+      this.password = await bcrypt.hash(this.password, 10); // 10 คือจำนวนรอบการสร้าง salt
+    }
+    next();
+  });
+  
+  // ฟังก์ชันในการตรวจสอบรหัสผ่าน
+  userSchema.methods.isPasswordCorrect = async function (password) {
+    return bcrypt.compare(password, this.password);
+  };
+
+// ✅ Middleware เช็คสถานะก่อนเข้าสู่ระบบ
+userSchema.statics.authenticate = async function (email, password) {
+    const user = await this.findOne({ email });
+
+    if (!user) {
+        throw new Error("User not found");
+    }
+
+    if (user.status === "disable") {
+        throw new Error("Your account is disabled. Please contact the administrator.");
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+        throw new Error("Invalid credentials");
+    }
+
+    return user;
+};
+
 // 📌 Method: เพิ่ม Log ของ User
 userSchema.methods.addLog = async function (action, details = {}) {
     this.activityLogs.push({ action, details });
     await this.save();
 };
-
-// 📌 Hash password before saving
-userSchema.pre('save', async function (next) {
-    if (this.isModified('password')) {
-        this.password = await bcrypt.hash(this.password, 10);
-    }
-    next();
-});
 
 // 📌 Generate JWT Token และบันทึกลงใน Database
 userSchema.methods.generateAuthToken = async function () {
@@ -54,11 +81,6 @@ userSchema.methods.generateAuthToken = async function () {
     await this.save();
 
     return token;
-};
-
-// 📌 Method to compare password
-userSchema.methods.comparePassword = async function (password) {
-    return await bcrypt.compare(password, this.password);
 };
 
 // 📌 Generate Password Reset Token
@@ -79,5 +101,4 @@ userSchema.methods.toJSON = function () {
 };
 
 const User = mongoose.model('User', userSchema);
-
 module.exports = User;

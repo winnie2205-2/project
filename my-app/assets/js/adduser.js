@@ -21,50 +21,58 @@ function showadduser() {
           <div class="card-body">
             <form id="UserForm">
               <div class="mb-3">
-                <label class="form-label" for="User_ID">ID*</label>
-                <input class="form-control" type="text" id="User_ID" placeholder="User_ID" value="${latestID}" disabled>
-              </div>
-              <div class="mb-3">
                 <label class="form-label" for="Username">Username*</label>
                 <input class="form-control" type="text" id="Username" placeholder="Username">
+                <small id="usernameError" class="form-text text-danger" style="display:none;">This field is required.</small>
               </div>
-              <div class="mb-4"> <!-- Added mb-4 for extra space -->
+              <div class="mb-4">
                 <label class="form-label" for="Gmail">Gmail*</label>
-                <input class="form-control" type="text" id="Gmail" placeholder="Enter your Gmail">
+                <input class="form-control" type="email" id="Gmail" placeholder="Enter your Gmail">
+                <small id="gmailError" class="form-text text-danger" style="display:none;">This field is required.</small>
               </div>
               <div class="mb-3">
                 <label class="form-label" for="Password">Password*</label>
-                <input class="form-control" type="password" id="Password" placeholder="Password">
+                <div class="input-group">
+                  <input class="form-control" type="password" id="Password" placeholder="Password">
+                  <span class="input-group-text toggle-password" style="cursor: pointer;">
+                    <i class="bi bi-eye-slash"></i>
+                  </span>
+                </div>
+                <small id="passwordError" class="form-text text-danger" style="display:none;">This field is required.</small>
               </div>
               <div class="mb-3">
                 <label class="form-label" for="Confirmpassword">Confirm password*</label>
-                <input class="form-control" type="password" id="Confirmpassword" placeholder="Confirm Password">
+                <div class="input-group">
+                  <input class="form-control" type="password" id="Confirmpassword" placeholder="Confirm Password">
+                  <span class="input-group-text toggle-password" style="cursor: pointer;">
+                    <i class="bi bi-eye-slash"></i>
+                  </span>
+                </div>
+                <small id="confirmPasswordError" class="form-text text-danger" style="display:none;">Passwords do not match.</small>
               </div>
-              <div class="d-flex justify-content-between align-items-center mb-3 reorder-status-box">
+              <div class="d-flex justify-content-between flex-wrap mb-3">
                 <div class="status-box">
                   <label class="form-label">Status*</label>
-                  <div class="justify-content-center align-items-center align-content-center" style="background: #ffffff;height: 50px;width: 220px;border-radius: 5px;border: 1px solid rgb(0,0,0);box-shadow: 0px 0px 2px 1px;">
-                    <div class="justify-content-center align-items-center align-content-center form-check form-check-inline me-2" style="margin-left: 5px;">
-                      <input type="radio" checked class="form-check-input" id="statusEnable" name="statusOptions" value="Enable" style="border: 2px solid rgb(0,0,0);">
+                  <div class="d-flex justify-content-start align-items-center" style="background:#ffffff;height:40px;width:auto;min-width:200px;border-radius:5px;border:1px solid rgb(0,0,0);box-shadow:0px 0px 2px 1px;">
+                    <div class="form-check form-check-inline" style="margin-left:10px;">
+                      <input type="radio" checked class="form-check-input" id="statusEnable" name="statusOptions" style="border:2px solid rgb(0,0,0);" value="Enable">
                       <label class="form-check-label" for="statusEnable">Enable</label>
                     </div>
-                    <div class="justify-content-center align-items-center align-content-center form-check form-check-inline" style="margin-right: 0px;">
-                      <input type="radio" class="form-check-input" id="statusDisable" name="statusOptions" value="Disable" style="border: 2px solid rgb(0,0,0);">
+                    <div class="form-check form-check-inline" style="margin-right:0px;">
+                      <input type="radio" class="form-check-input" id="statusDisable" name="statusOptions" style="border:2px solid rgb(0,0,0);" value="Disable">
                       <label class="form-check-label" for="statusDisable">Disable</label>
                     </div>
                   </div>
                 </div>
                 <div class="mb-3">
-                  <div class="dropdown" style="margin-top:50px;">
-                    <button class="btn btn-light dropdown-toggle" type="button" id="roleDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                      Choose Roles
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="roleDropdown">
-                      <li><label class="dropdown-item"><input type="checkbox" class="role-checkbox" value="Admin"> Admin</label></li>
-                      <li><label class="dropdown-item"><input type="checkbox" class="role-checkbox" value="Owner"> Owner</label></li>
-                      <li><label class="dropdown-item"><input type="checkbox" class="role-checkbox" value="Employee"> Employee</label></li>
-                    </ul>
-                  </div>
+                  <label class="form-label" for="selectRole">Role*</label>
+                  <select class="form-select" id="selectRole" style="width:200px;">
+                    <option value="" selected disabled>Select a role</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Owner">Owner</option>
+                    <option value="Employee">Employee</option>
+                  </select>
+                  <small id="roleError" class="form-text text-danger" style="display:none;">Please select a role.</small>
                 </div>
               </div>
               <div class="text-end mt-4">
@@ -81,64 +89,102 @@ function showadduser() {
     width: "600px",
     background: 'transparent',
     customClass: {
-      popup: 'my-popup-class'  // เพิ่มคลาสสำหรับจัดการกับ CSS เอง
+      popup: 'my-popup-class'
     },
     didOpen: () => {
-      const dropdownElement = document.getElementById('roleDropdown');
-      const dropdownMenu = document.querySelector('.dropdown-menu');
-    
-      if (!dropdownElement || !dropdownMenu) {
-        console.error("Dropdown elements not found.");
-        return;
-      }
-    
-      const dropdown = new bootstrap.Dropdown(dropdownElement);
-      dropdownElement.addEventListener('click', (event) => {
-        event.stopPropagation(); // Prevent modal from interfering with dropdown
-        dropdown.toggle(); // Manually toggle the dropdown
-      });
-    
-      document.addEventListener('click', (event) => {
-        if (!dropdownElement.contains(event.target) && !dropdownMenu.contains(event.target)) {
-          dropdown.hide();
-        }
-      });
-    
-      const dropdownButton = document.getElementById("roleDropdown");
-      const checkboxes = document.querySelectorAll(".role-checkbox");
-      checkboxes.forEach(checkbox => {
-        checkbox.addEventListener("change", () => {
-          const selectedRoles = Array.from(checkboxes)
-            .filter(checkbox => checkbox.checked)
-            .map(checkbox => checkbox.value)
-            .join(", ");
+      // Set up password visibility toggle
+      document.querySelectorAll('.toggle-password').forEach(button => {
+        button.addEventListener('click', function() {
+          const input = this.previousElementSibling;
+          const icon = this.querySelector('i');
           
-          dropdownButton.textContent = selectedRoles || "Choose Roles";
+          if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+          } else {
+            input.type = 'password';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+          }
         });
       });
 
-      document.getElementById("saveButton").addEventListener("click", saveProduct);
+      document.getElementById("saveButton").addEventListener("click", saveUser);
       document.getElementById("closeButton").addEventListener("click", () => Swal.close());
     },
   });
 }
 
-function saveProduct() {
-  const User_ID = document.getElementById('User_ID').value;
-  const Username = document.getElementById("Username").value;
-  const Gmail = document.getElementById("Gmail").value;
+function saveUser() {
+  // Reset all error messages and red labels
+  document.querySelectorAll(".form-text.text-danger").forEach((el) => (el.style.display = "none"));
+  document.querySelectorAll(".form-label").forEach((el) => el.classList.remove("text-danger"));
+
+  let isValid = true;
+
+  // Get form values
+  const Username = document.getElementById("Username").value.trim();
+  const Gmail = document.getElementById("Gmail").value.trim();
   const Password = document.getElementById("Password").value;
   const Confirmpassword = document.getElementById("Confirmpassword").value;
   const status = document.querySelector('input[name="statusOptions"]:checked').value;
-  const selectedRole = document.getElementById("roleDropdown").textContent;
+  const selectedRole = document.getElementById("selectRole").value;
 
-  if (!User_ID || !Username || !Gmail || !Password || !Confirmpassword || selectedRole === "Choose Roles") {
-    Swal.fire('Please fill in all fields and select a role', '', 'warning');
+  // Validate Username
+  if (!Username) {
+    document.getElementById("usernameError").style.display = "block";
+    document.getElementById("Username").previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  }
+
+  // Validate Gmail
+  if (!Gmail) {
+    document.getElementById("gmailError").textContent = "This field is required.";
+    document.getElementById("gmailError").style.display = "block";
+    document.getElementById("Gmail").previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  } else if (!validateEmail(Gmail)) {
+    document.getElementById("gmailError").textContent = "Please enter a valid Gmail address (@gmail.com).";
+    document.getElementById("gmailError").style.display = "block";
+    document.getElementById("Gmail").previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  }
+
+  // Validate Password
+  if (!Password) {
+    document.getElementById("passwordError").style.display = "block";
+    document.getElementById("Password").closest('.input-group').previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  }
+
+  // Validate Confirm Password
+  if (!Confirmpassword) {
+    document.getElementById("confirmPasswordError").textContent = "This field is required.";
+    document.getElementById("confirmPasswordError").style.display = "block";
+    document.getElementById("Confirmpassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  } else if (Password !== Confirmpassword) {
+    document.getElementById("confirmPasswordError").textContent = "Passwords do not match.";
+    document.getElementById("confirmPasswordError").style.display = "block";
+    document.getElementById("Confirmpassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  }
+
+  // Validate Role
+  if (!selectedRole) {
+    document.getElementById("roleError").style.display = "block";
+    document.getElementById("selectRole").previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  }
+
+  // If any field is invalid, stop the process
+  if (!isValid) {
     return;
   }
 
+  // Prepare data for API
   const newUser = {
-    User_ID: User_ID,
     Username: Username,
     Gmail: Gmail,
     Password: Password,
@@ -148,25 +194,18 @@ function saveProduct() {
 
   console.log('Sending data to API:', newUser);
 
-  // ดึง token จาก localStorage
-  const token = localStorage.getItem('token');  // หรือ sessionStorage.getItem('authToken')
-
-  if (!token) {
-    Swal.fire('Please log in first', '', 'warning');
-    return;
-  }
-
-  fetch('http://localhost:5000/api/users/add', {
+  // Send data to API
+  fetch('http://localhost:5000/api/users/create',  {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,  // ส่ง token ใน headers
+      'Authorization': `Bearer ${localStorage.getItem("token")}`,
     },
     body: JSON.stringify(newUser),
   })
   .then(response => {
     if (!response.ok) {
-      throw new Error('Failed to save user');
+      throw new Error(`Failed to save user: ${response.status}`);
     }
     return response.json();
   })
@@ -179,7 +218,125 @@ function saveProduct() {
       confirmButtonText: 'OK'
     }).then(() => {
       Swal.close();
-      fetchUsers();
+      fetchUsers(); // Refresh the user list
+    });
+  })
+  .catch((error) => {
+    console.error('Error saving user:', error);
+    Swal.fire('Error saving user!', error.message, 'error');
+  });
+}
+
+function validateEmail(email) {
+  // Simple validation to check if the email ends with @gmail.com
+  return email.toLowerCase().endsWith('@gmail.com');
+}
+
+// Function to update user
+function updateUser(userId) {
+  // Reset all error messages and red labels
+  document.querySelectorAll(".form-text.text-danger").forEach((el) => (el.style.display = "none"));
+  document.querySelectorAll(".form-label").forEach((el) => el.classList.remove("text-danger"));
+
+  let isValid = true;
+
+  // Get form values
+  const Username = document.getElementById("Username").value.trim();
+  const Gmail = document.getElementById("Gmail").value.trim();
+  const Password = document.getElementById("Password").value;
+  const ConfirmPassword = document.getElementById("ConfirmPassword").value;
+  const status = document.querySelector('input[name="statusOptions"]:checked').value;
+  const selectedRole = document.getElementById("selectRole").value;
+
+  // Validate Username
+  if (!Username) {
+    document.getElementById("usernameError").style.display = "block";
+    document.getElementById("Username").previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  }
+
+  // Validate Gmail
+  if (!Gmail) {
+    document.getElementById("gmailError").textContent = "This field is required.";
+    document.getElementById("gmailError").style.display = "block";
+    document.getElementById("Gmail").previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  } else if (!validateEmail(Gmail)) {
+    document.getElementById("gmailError").textContent = "Please enter a valid Gmail address (@gmail.com).";
+    document.getElementById("gmailError").style.display = "block";
+    document.getElementById("Gmail").previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  }
+
+  // Validate Password (optional for edit)
+  if (Password) {
+    if (!ConfirmPassword) {
+      document.getElementById("confirmPasswordError").textContent = "Please confirm your password.";
+      document.getElementById("confirmPasswordError").style.display = "block";
+      document.getElementById("ConfirmPassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
+      isValid = false;
+    } else if (Password !== ConfirmPassword) {
+      document.getElementById("confirmPasswordError").textContent = "Passwords do not match.";
+      document.getElementById("confirmPasswordError").style.display = "block";
+      document.getElementById("ConfirmPassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
+      isValid = false;
+    }
+  }
+
+  // Validate Role
+  if (!selectedRole) {
+    document.getElementById("roleError").style.display = "block";
+    document.getElementById("selectRole").previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  }
+
+  // If any field is invalid, stop the process
+  if (!isValid) {
+    return;
+  }
+
+  // Prepare data for API
+  fetch(`http://localhost:5000/api/users/edit/${userId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify(userData),
+  })
+
+  // Only include password if it's provided
+  if (Password) {
+    userData.Password = Password;
+  }
+
+  console.log('Sending data to API:', userData);
+
+  // Send data to API
+  fetch("http://localhost:5000/api/users/users", {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify(userData),
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`Failed to update user: ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(data => {
+    console.log('Data received from API:', data);
+    Swal.fire({
+      title: 'Success!',
+      text: 'User has been updated successfully.',
+      icon: 'success',
+      confirmButtonText: 'OK'
+    }).then(() => {
+      Swal.close();
+      fetchUsers(); // Refresh the user list
     });
   })
   .catch((error) => {
@@ -188,10 +345,8 @@ function saveProduct() {
   });
 }
 
-const token = localStorage.getItem('token');
-
 let currentPage = 1; // Track the current page
-const usersPerPage = 6; // Number of users to display per page
+const usersPerPage = 10; // Number of users to display per page
 let allUsers = []; // Store all users fetched from the API
 
 // Fetch users from the API
@@ -264,7 +419,9 @@ function displayUsers(users) {
       <td class="text-center">${formatDate(user.createdAt)}</td>
       <td class="text-center" style="white-space: nowrap;">
         <div class="d-flex justify-content-center gap-2">
-          <button class="btn text-primary border-0 bg-transparent p-1 fs-4" onclick="showEditBox('${user.username}')">
+          <button class="btn text-primary border-0 bg-transparent p-1 fs-4" 
+            data-user='${JSON.stringify(user)}' 
+            onclick="showEditUser(this)">
             <i class="bi bi-pencil-square"></i>
           </button>
           <button class="btn text-danger border-0 bg-transparent p-1 fs-4" onclick="deleteUser('${user._id}')">
@@ -280,7 +437,6 @@ function displayUsers(users) {
   // Update pagination buttons
   updatePaginationButtons(users.length);
 }
-
 // Function to update pagination buttons
 function updatePaginationButtons(totalUsers) {
   const totalPages = Math.ceil(totalUsers / usersPerPage);
@@ -295,7 +451,7 @@ function updatePaginationButtons(totalUsers) {
   // Previous button
   pagination.innerHTML += `
     <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-      <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">«</a>
+      <a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;" tabindex="-1">«</a>
     </li>
   `;
 
@@ -303,7 +459,7 @@ function updatePaginationButtons(totalUsers) {
   for (let i = 1; i <= totalPages; i++) {
     pagination.innerHTML += `
       <li class="page-item ${currentPage === i ? 'active' : ''}">
-        <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+        <a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>
       </li>
     `;
   }
@@ -311,7 +467,7 @@ function updatePaginationButtons(totalUsers) {
   // Next button
   pagination.innerHTML += `
     <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-      <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">»</a>
+      <a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;" tabindex="-1">»</a>
     </li>
   `;
 }
@@ -323,11 +479,16 @@ function changePage(page) {
   displayUsers(allUsers); // Re-render users for the new page
 }
 
-// Function to format date
+// Placeholder for date formatting function
 function formatDate(dateString) {
-  if (!dateString) return '-';
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-GB'); // Format as DD/MM/YYYY
+  return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+}
+
+// Placeholder for the delete function
+function deleteUser(userId) {
+  console.log('Deleting user with ID:', userId);
+  // Add your delete logic here
 }
 
 // Call fetchUsers on page load
@@ -342,100 +503,294 @@ window.onload = function () {
   fetchUsers(); // Fetch users when the page loads
 };
 
-// ฟังก์ชันสำหรับแก้ไข (ต้องเขียนเพิ่ม)
-function editUser(userId) {
-  const Username = document.getElementById("editUsername").value;
-  const Gmail = document.getElementById("editGmail").value;
-  const Password = document.getElementById("editPassword").value;
-  const Confirmpassword = document.getElementById("editConfirmpassword").value;
-  const status = document.querySelector('input[name="editStatusOptions"]:checked').value;
-  const selectedRole = document.getElementById("editRoleDropdown").textContent;
+function showEditUser(button) {
+  const user = JSON.parse(button.getAttribute('data-user'));
 
-  if (!Username || !Gmail || !Password || !Confirmpassword || selectedRole === "Choose Roles") {
-    Swal.fire('Please fill in all fields and select a role', '', 'warning');
+  // Ensure user is an object
+  if (typeof user !== 'object' || user === null) {
+    console.error("Invalid user data:", user);
+    Swal.fire('Error', 'Invalid user data. Please try again.', 'error');
     return;
   }
 
-  const updatedUser = {
-    Username,
-    Gmail,
-    Password,
-    status,
-    Role: selectedRole,
+  Swal.fire({
+    html: `
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.1/dist/sweetalert2.min.css">
+      <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css">
+      <link rel="stylesheet" href="assets/css/style.css">
+      <link rel="stylesheet" href="assets/css/popup.css">
+      <link rel="stylesheet" href="assets/css/dropdown.css">
+      <div class="d-flex justify-content-center">
+        <div class="card" style="background: #ebe3ce;width: 500px;max-width: inherit;">
+          <div class="card-header text-center" style="background: #ebe3ce;">
+            <h5 style="font-weight: bold;">Edit User Information</h5>
+          </div>
+          <div class="card-body">
+            <form id="UserForm">
+              <div class="mb-3">
+                <label class="form-label" for="Username">Username*</label>
+                <input class="form-control" type="text" id="Username" value="${user.username || ''}">
+                <small id="usernameError" class="form-text text-danger" style="display:none;">This field is required.</small>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="Gmail">Gmail*</label>
+                <input class="form-control" type="email" id="Gmail" value="${user.email || ''}">
+                <small id="gmailError" class="form-text text-danger" style="display:none;">Please enter a valid Gmail address (@gmail.com).</small>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="Password">New Password (optional)</label>
+                <div class="input-group">
+                  <input class="form-control" type="password" id="Password" placeholder="Leave blank if not changing">
+                  <span class="input-group-text toggle-password" style="cursor: pointer;">
+                    <i class="bi bi-eye-slash"></i>
+                  </span>
+                </div>
+                <small id="passwordError" class="form-text text-danger" style="display:none;">This field is required.</small>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="ConfirmPassword">Confirm Password</label>
+                <div class="input-group">
+                  <input class="form-control" type="password" id="ConfirmPassword">
+                  <span class="input-group-text toggle-password" style="cursor: pointer;">
+                    <i class="bi bi-eye-slash"></i>
+                  </span>
+                </div>
+                <small id="confirmPasswordError" class="form-text text-danger" style="display:none;">Passwords do not match.</small>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mb-3 reorder-status-box">
+                <div class="status-box">
+                  <label class="form-label">Status*</label>
+                  <div class="d-flex justify-content-start align-items-center" style="background:#ffffff;height:40px;width:auto;min-width:200px;border-radius:5px;border:1px solid rgb(0,0,0);box-shadow:0px 0px 2px 1px;">
+                    <div class="form-check form-check-inline" style="margin-left:10px;">
+                      <input type="radio" class="form-check-input" id="statusEnable" name="statusOptions" style="border:2px solid rgb(0,0,0);" value="Enable" ${user.status === 'Enable' ? 'checked' : ''}>
+                      <label class="form-check-label" for="statusEnable">Enable</label>
+                    </div>
+                    <div class="form-check form-check-inline" style="margin-right:0px;">
+                      <input type="radio" class="form-check-input" id="statusDisable" name="statusOptions" style="border:2px solid rgb(0,0,0);" value="Disable" ${user.status === 'Disable' ? 'checked' : ''}>
+                      <label class="form-check-label" for="statusDisable">Disable</label>
+                    </div>
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label" for="selectRole">Role*</label>
+                  <select class="form-select" id="selectRole" style="width:200px;">
+                    <option value="" disabled>Select a role</option>
+                    <option value="Admin" ${user.role === 'Admin' ? 'selected' : ''}>Admin</option>
+                    <option value="Owner" ${user.role === 'Owner' ? 'selected' : ''}>Owner</option>
+                    <option value="Employee" ${user.role === 'Employee' ? 'selected' : ''}>Employee</option>
+                  </select>
+                  <small id="roleError" class="form-text text-danger" style="display:none;">Please select a role.</small>
+                </div>
+              </div>
+              <div class="text-end mt-4">
+                <button id="closeButton" class="btn btn-secondary me-2" type="button" style="background: #ebe3ce;color: rgb(0,0,0);width: 100px;box-shadow: 0px 0px 2px 1px;padding: 7px 12px;border-radius: 50px;">Close</button>
+                <button id="saveButton" class="btn btn-success" type="button" style="background: #28aa4a;color: rgb(0,0,0);width: 100px;box-shadow: 0px 0px 2px 1px;border-radius: 50px;padding-top: 7px;padding-bottom: 7px;">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>`,
+    showConfirmButton: false,
+    showCancelButton: false,
+    width: "600px",
+    background: 'transparent',
+    didOpen: () => {
+      // Set up password visibility toggle
+      document.querySelectorAll('.toggle-password').forEach(button => {
+        button.addEventListener('click', function() {
+          const input = this.previousElementSibling;
+          const icon = this.querySelector('i');
+          
+          if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+          } else {
+            input.type = 'password';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+          }
+        });
+      });
+
+      // Save button logic
+      document.getElementById("saveButton").addEventListener("click", () => {
+        const Username = document.getElementById("Username").value.trim();
+        const Gmail = document.getElementById("Gmail").value.trim();
+        const Password = document.getElementById("Password").value;
+        const ConfirmPassword = document.getElementById("ConfirmPassword").value;
+        const status = document.querySelector('input[name="statusOptions"]:checked').value;
+        const selectedRole = document.getElementById("selectRole").value;
+
+        // Check if any field has changed
+        const isUsernameChanged = Username !== user.username;
+        const isGmailChanged = Gmail !== user.email;
+        const isPasswordChanged = Password !== "" || ConfirmPassword !== "";
+        const isStatusChanged = status !== user.status;
+        const isRoleChanged = selectedRole !== user.role;
+
+        if (
+          !isUsernameChanged &&
+          !isGmailChanged &&
+          !isPasswordChanged &&
+          !isStatusChanged &&
+          !isRoleChanged
+        ) {
+          Swal.fire('No Changes', 'No changes were made to the user.', 'info');
+        } else {
+          updateUser(user._id); // Save changes
+        }
+      });
+
+      // Close button logic with confirmation
+      document.getElementById("closeButton").addEventListener("click", () => {
+        Swal.fire({
+          title: 'Are you sure?',
+          text: 'Are you sure you want to cancel? The changes haven\'t been saved.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#3085d6',
+          confirmButtonText: 'Yes, cancel',
+          cancelButtonText: 'No, keep editing'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            Swal.close(); // Close the edit modal
+          }
+        });
+      });
+    }
+  });
+}
+function saveUser() {
+  // Reset all error messages and red labels
+  document.querySelectorAll(".form-text.text-danger").forEach((el) => (el.style.display = "none"));
+  document.querySelectorAll(".form-label").forEach((el) => el.classList.remove("text-danger"));
+
+  let isValid = true;
+
+  // Get form values
+  const Username = document.getElementById("Username").value.trim();
+  const Gmail = document.getElementById("Gmail").value.trim();
+  const Password = document.getElementById("Password").value;
+  const Confirmpassword = document.getElementById("Confirmpassword").value;
+  const status = document.querySelector('input[name="statusOptions"]:checked').value.toLowerCase(); // Convert to lowercase
+  const selectedRole = document.getElementById("selectRole").value;
+
+  // Validate Username
+  if (!Username) {
+    document.getElementById("usernameError").style.display = "block";
+    document.getElementById("Username").previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  }
+
+  // Validate Gmail
+  if (!Gmail) {
+    document.getElementById("gmailError").textContent = "This field is required.";
+    document.getElementById("gmailError").style.display = "block";
+    document.getElementById("Gmail").previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  } else if (!validateEmail(Gmail)) {
+    document.getElementById("gmailError").textContent = "Please enter a valid Gmail address (@gmail.com).";
+    document.getElementById("gmailError").style.display = "block";
+    document.getElementById("Gmail").previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  }
+
+  // Validate Password
+  if (!Password) {
+    document.getElementById("passwordError").style.display = "block";
+    document.getElementById("Password").closest('.input-group').previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  }
+
+  // Validate Confirm Password
+  if (!Confirmpassword) {
+    document.getElementById("confirmPasswordError").textContent = "This field is required.";
+    document.getElementById("confirmPasswordError").style.display = "block";
+    document.getElementById("Confirmpassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  } else if (Password !== Confirmpassword) {
+    document.getElementById("confirmPasswordError").textContent = "Passwords do not match.";
+    document.getElementById("confirmPasswordError").style.display = "block";
+    document.getElementById("Confirmpassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  }
+
+  // Validate Role
+  if (!selectedRole) {
+    document.getElementById("roleError").style.display = "block";
+    document.getElementById("selectRole").previousElementSibling.classList.add("text-danger");
+    isValid = false;
+  }
+
+  // If any field is invalid, stop the process
+  if (!isValid) {
+    return;
+  }
+
+  // Prepare data for API - use lowercase field names to match backend expectations
+  const newUser = {
+    username: Username,
+    email: Gmail,
+    password: Password,
+    status: status || 'enable', // lowercase to match backend
+    role: selectedRole,
   };
 
-  console.log("Updating user:", updatedUser);
+  console.log('Sending data to API:', newUser);
 
-  fetch(`http://localhost:5000/api/users/update/${userId}`, {
-    method: "PUT",
+  // Use the correct API endpoint based on other working API calls
+  fetch('http://localhost:5000/api/users/create', {
+    method: 'POST',
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem("token")}`,
     },
-    body: JSON.stringify(updatedUser),
+    body: JSON.stringify(newUser),
   })
-  .then(response => response.json())
+  .then(response => {
+    console.log('Response status:', response.status);
+    if (!response.ok) {
+      return response.text().then(text => {
+        console.error('Error response body:', text);
+        throw new Error(`Failed to save user: ${response.status}`);
+      });
+    }
+    return response.json();
+  })
   .then(data => {
-    console.log("User updated:", data);
+    console.log('Data received from API:', data);
     Swal.fire({
-      title: "Success!",
-      text: "User has been updated successfully.",
-      icon: "success",
-      confirmButtonText: "OK"
+      title: 'Success!',
+      text: 'User has been added successfully.',
+      icon: 'success',
+      confirmButtonText: 'OK'
     }).then(() => {
       Swal.close();
-      fetchUsers();  // โหลดข้อมูลใหม่หลังอัปเดต
+      fetchUsers(); // Refresh the user list
     });
   })
-  .catch(error => {
-    console.error("Error updating user:", error);
-    Swal.fire("Error updating user!", "", "error");
+  .catch((error) => {
+    console.error('Error saving user:', error);
+    Swal.fire('Error saving user!', error.message, 'error');
   });
 }
 
 
-function updateUser(userId, newUsername) {
-  // ตัวอย่างการส่งข้อมูลไปยัง API
-  fetch(`http://localhost:5000/users/${userId}`, {
-      method: 'PUT',
-      headers: {
-          'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-          username: newUsername
-      })
-  })
-  .then(response => response.json())
-  .then(data => {
-      // อัปเดตข้อมูลในตารางหลังจากแก้ไข
-      document.getElementById(`username-${userId}`).innerText = newUsername;
-      console.log('data::',data)
-      // แจ้งเตือนการอัปเดตสำเร็จ
-      Swal.fire({
-          icon: 'success',
-          title: 'User updated!',
-          showConfirmButton: false,
-          timer: 1500
-      });
-  })
-  .catch(error => {
-      // แจ้งเตือนหากเกิดข้อผิดพลาด
-      Swal.fire({
-          icon: 'error',
-          title: 'Error!',
-          text: 'Something went wrong while updating the user.'
-      });
-  });
-}
-
-// ฟังก์ชันลบผู้ใช้
+// Function to delete a user
+// Function to delete a user
 function deleteUser(userId) {
-  console.log("🆔 Trying to delete user:", userId); // ✅ ตรวจสอบค่า userId
+  console.log("🆔 Trying to delete user:", userId); // Log userId for debugging
+
   const token = localStorage.getItem('token');
   if (!token) {
       Swal.fire('Please log in first', '', 'warning');
       return;
   }
 
+  // Confirmation dialog before deletion
   Swal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
@@ -446,26 +801,32 @@ function deleteUser(userId) {
       confirmButtonText: "Yes, delete it!"
   }).then((result) => {
       if (result.isConfirmed) {
-          fetch(`http://localhost:5000/api/users/delete/${userId}`, {  // ✅ ตรงกับ Backend
+          fetch(`http://localhost:5000/api/users/delete/${userId}`, {
               method: 'DELETE',
-              headers: { 'Authorization': `Bearer ${token}` }
+              headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+              }
           })
-          .then(response => {
-              if (!response.ok) throw new Error('Failed to delete user');
-              return response.json();
-          })
-          .then(() => {
+          .then(response => response.json().then(data => ({ status: response.status, body: data }))) // Extract status & body
+          .then(({ status, body }) => {
+              if (status !== 200) {
+                  console.error(`❌ Error: ${body.error || "Failed to delete user"}`);
+                  Swal.fire('Error', body.error || 'Failed to delete user', 'error');
+                  return;
+              }
+              
+              console.log("✅ User deleted successfully:", body);
               Swal.fire('Deleted!', 'User has been deleted.', 'success');
-              fetchUsers(); // โหลดข้อมูลใหม่
+              fetchUsers(); // Refresh the user list
           })
           .catch(error => {
-              console.error('Error deleting user:', error);
-              Swal.fire('Error deleting user!', '', 'error');
+              console.error("🚨 Error deleting user:", error);
+              Swal.fire('Error', 'Something went wrong!', 'error');
           });
       }
   });
 }
-
 
 document.addEventListener("DOMContentLoaded", fetchUsers);
 
