@@ -16,64 +16,65 @@ if (!fs.existsSync(thaiFontPath)) {
     console.log(`✅ พบฟอนต์ที่: ${thaiFontPath}`);
 }
 
-
 // ✅ ดึงสินค้าทั้งหมด พร้อมแสดง categoryName แทน ObjectId
 router.get("/overview", async (req, res) => {
     try {
         const { location } = req.query;
         let filter = {};
 
-        // ✅ ตรวจสอบ location และใช้เงื่อนไขที่เหมาะสม
+        // ตรวจสอบ location และใช้เงื่อนไขที่เหมาะสม
         if (location && location !== "all") {
             filter.location = location;
         }
 
-        // ✅ ดึงข้อมูลตามเงื่อนไข filter
+        // ดึงข้อมูลตามเงื่อนไข filter
         const items = await Item.find(filter).populate("categoryID", "categoryName");
 
-        let totalProfit = 0, totalExpense = 0, totalLoss = 0;
+        let totalRevenue = 0, totalExpense = 0, totalLoss = 0;
         let locations = {
-            Krabi: { profit: 0, expense: 0, loss: 0 },
-            "Nakhon Si Thammarat": { profit: 0, expense: 0, loss: 0 }
+            Krabi: { revenue: 0, expense: 0, loss: 0 },
+            "Nakhon Si Thammarat": { revenue: 0, expense: 0, loss: 0 }
         };
         let categoryOverview = {};
 
         items.forEach(item => {
-            const profit = item.qty * item.price;
-            let expense = 0, loss = 0;
+            let revenue = 0, expense = 0;
             const categoryName = item.categoryID ? item.categoryID.categoryName : "Uncategorized";
 
             item.activityLogs.forEach(log => {
                 if (log.action === "withdraw") {
-                    expense += log.qty * item.price;
+                    revenue += log.qty * item.price; // รายได้จากการขาย
+                } else if (log.action === "restock") {
+                    expense += log.qty * (log.purchasePrice || item.price); // ใช้ purchasePrice ถ้ามี
                 }
             });
 
-            totalProfit += profit;
+            const loss = Math.max(0, expense - revenue); // คำนวณขาดทุน
+
+            // อัปเดตค่า overview
+            totalRevenue += revenue;
             totalExpense += expense;
             totalLoss += loss;
 
-            if (item.location === "Krabi") {
-                locations.Krabi.profit += profit;
-                locations.Krabi.expense += expense;
-                locations.Krabi.loss += loss;
-            } else if (item.location === "Nakhon Si Thammarat") {
-                locations["Nakhon Si Thammarat"].profit += profit;
-                locations["Nakhon Si Thammarat"].expense += expense;
-                locations["Nakhon Si Thammarat"].loss += loss;
+            // อัปเดตข้อมูลแยกตาม location
+            if (item.location in locations) {
+                locations[item.location].revenue += revenue;
+                locations[item.location].expense += expense;
+                locations[item.location].loss += loss;
             }
 
+            // อัปเดตข้อมูลแยกตาม category
             if (!categoryOverview[categoryName]) {
-                categoryOverview[categoryName] = { profit: 0, expense: 0, loss: 0 };
+                categoryOverview[categoryName] = { revenue: 0, expense: 0, loss: 0 };
             }
-            categoryOverview[categoryName].profit += profit;
+            categoryOverview[categoryName].revenue += revenue;
             categoryOverview[categoryName].expense += expense;
             categoryOverview[categoryName].loss += loss;
         });
 
         let response = {
             overview: {
-                totalProfit,
+                totalRevenue,
                 totalExpense,
                 totalLoss
             },
@@ -81,11 +82,11 @@ router.get("/overview", async (req, res) => {
             categoryOverview
         };
 
-        // ✅ เงื่อนไขสำหรับ location ที่ระบุ (Krabi หรือ Nakhon Si Thammarat)
+        // เงื่อนไขสำหรับ location ที่ระบุ (Krabi หรือ Nakhon Si Thammarat)
         if (location && location !== "all") {
             response = {
                 overview: {
-                    totalProfit: locations[location]?.profit || 0,
+                    totalRevenue: locations[location]?.revenue || 0,
                     totalExpense: locations[location]?.expense || 0,
                     totalLoss: locations[location]?.loss || 0
                 },
@@ -109,15 +110,19 @@ router.get("/overview/chart", async (req, res) => {
             filter.location = location;
         }
 
-        const items = await Item.find(filter).populate("categoryID", "categoryName");
+        const items = await Item.find(filter)
+            .populate("categoryID", "categoryName")
+            .select("name qty price createdAt activityLogs");
 
         let monthlyData = {}; // เก็บข้อมูลรายเดือน
-        let categoryData = {}; // เก็บข้อมูลตามหมวดหมู่
+        let productData = {}; // เก็บข้อมูลตามสินค้าแทน category
+
+        let itemList = []; // เก็บรายการสินค้า
+        let topProducts = {}; // เก็บข้อมูลสินค้า Top 10
 
         items.forEach(item => {
             const profit = item.qty * item.price;
             let expense = 0;
-            const categoryName = item.categoryID ? item.categoryID.categoryName : "Uncategorized";
 
             item.activityLogs.forEach(log => {
                 if (log.action === "withdraw") {
@@ -134,22 +139,44 @@ router.get("/overview/chart", async (req, res) => {
             monthlyData[month].profit += profit;
             monthlyData[month].expense += expense;
 
-            // ✅ จัดข้อมูลตามหมวดหมู่
-            if (!categoryData[categoryName]) {
-                categoryData[categoryName] = { profit: 0, expense: 0 };
+            // ✅ จัดข้อมูลตามสินค้า (แทน Category Overview)
+            if (!productData[item.name]) {
+                productData[item.name] = { profit: 0, expense: 0 };
             }
-            categoryData[categoryName].profit += profit;
-            categoryData[categoryName].expense += expense;
+            productData[item.name].profit += profit;
+            productData[item.name].expense += expense;
+
+            // ✅ เก็บข้อมูลสินค้า
+            itemList.push({
+                name: item.name,
+                profit,
+                expense
+            });
+
+            // ✅ จัดข้อมูลสินค้าสำหรับ Top 10
+            if (!topProducts[item.name]) {
+                topProducts[item.name] = { profit: 0, expense: 0 };
+            }
+            topProducts[item.name].profit += profit;
+            topProducts[item.name].expense += expense;
         });
 
+        // ✅ คัดกรอง Top 10 สินค้าโดยเรียงตามกำไรสูงสุด
+        const top10Products = Object.entries(topProducts)
+            .map(([name, values]) => ({ name, ...values }))
+            .sort((a, b) => b.profit - a.profit)
+            .slice(0, 10);
+
         res.json({
+            items: itemList,
+            topProducts: top10Products,
             monthlyOverview: Object.entries(monthlyData).map(([month, values]) => ({
                 month,
                 profit: values.profit,
                 expense: values.expense
             })),
-            categoryOverview: Object.entries(categoryData).map(([category, values]) => ({
-                category,
+            categoryOverview: Object.entries(productData).map(([name, values]) => ({
+                productName: name,  // เปลี่ยนจาก category เป็น productName
                 profit: values.profit,
                 expense: values.expense
             }))
@@ -161,7 +188,6 @@ router.get("/overview/chart", async (req, res) => {
 });
 
 router.get("/", async (req, res) => {
-
     try {
         const items = await Item.find().populate("categoryID", "categoryName");
 
@@ -171,17 +197,18 @@ router.get("/", async (req, res) => {
 
         // คำนวณ Reorder Alert (แจ้งเตือนเมื่อสินค้าใกล้หมด)
         const itemsWithAlert = items.map(item => {
-            const threshold = item.reorderPoint * 1.15; // 15% เพิ่มเติมจาก reorderPoint
+            const warningThreshold = item.reorderPoint + (item.qty * 0.15); // 15% ของสินค้าทั้งหมด
             let alertLevel = "normal";
-        
+
             if (item.status === "disabled") {
                 alertLevel = "gray"; // สีเทา (ไอเทมถูกปิดใช้งาน)
-            } else if (item.qty <= threshold) {
-                alertLevel = "danger"; // สีแดง (ใกล้ถึงจุดต้องเติมสินค้า)
-            } else if (item.qty > threshold) {
-                alertLevel = "normal"; // ปกติ
+            } else if (item.qty <= item.reorderPoint) {
+                alertLevel = "danger"; // สีแดง (ถึงหรือต่ำกว่า reorderPoint)
+            } else if (item.qty > item.reorderPoint && item.qty <= warningThreshold) {
+                alertLevel = "warning"; // สีเหลือง (อยู่ในช่วง 15% ก่อนถึง reorderPoint)
+            } else {
+                alertLevel = "normal"; // ปกติ (เกิน warningThreshold)
             }
-            
 
             return {
                 _id: item._id,
@@ -984,8 +1011,18 @@ router.get("/report/average-products/pdf", async (req, res) => {
             return res.status(404).json({ error: "ไม่พบข้อมูลสินค้า" });
         }
 
-        // PDF Setup
-        const doc = new PDFDocument({ margin: 50, size: 'A4' });
+        // PDF Setup - Set 1 inch margins (72 points per inch)
+        const margin = 72;
+        const doc = new PDFDocument({ 
+            margins: {
+                top: margin,
+                bottom: margin,
+                left: margin,
+                right: margin
+            }, 
+            size: 'A4' 
+        });
+        
         const filename = `รายงานสินค้า_${Date.now()}.pdf`;
         res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
         res.setHeader("Content-Type", "application/pdf");
@@ -1001,8 +1038,25 @@ router.get("/report/average-products/pdf", async (req, res) => {
         
         doc.pipe(res);
 
+        // Add logo at the top
+        // Assuming you have a logo file path defined
+        const logoPath = 'D:/Project/my-app/assets/img/log sky.png';// Adjust path as needed
+        if (fs.existsSync(logoPath)) {
+            // Center the logo with 100px height (maintain aspect ratio)
+            const logoWidth = 80;
+            const logoHeight = 80;
+            const pageCenter = doc.page.width / 2;
+            doc.image(logoPath, pageCenter - (logoWidth / 2), margin, {
+                width: logoWidth,
+                height: logoHeight
+            });
+            doc.moveDown(6); // Space after logo
+        } else {
+            console.warn("Logo file not found at:", logoPath);
+        }
+
         // Header Section
-        doc.fontSize(18).text("รายงานสินค้าคงคลัง", { align: "center" });
+        doc.fontSize(20).text("รายงานสินค้าคงคลัง", { align: "center" });
         doc.moveDown(0.5);
         
         const locationText = location === 'both' ? 'ทั้งสองสาขา' : 
@@ -1014,7 +1068,7 @@ router.get("/report/average-products/pdf", async (req, res) => {
             dateRangeText = `ระหว่างวันที่ ${new Date(startDate).toLocaleDateString('th-TH')} ถึง ${new Date(endDate).toLocaleDateString('th-TH')}`;
         }
         
-        doc.fontSize(12)
+        doc.fontSize(16)
             .text(`สถานที่: ${locationText}`, { align: "center" })
             .text(dateRangeText, { align: "center" })
             .text(`วันที่ออกรายงาน: ${new Date().toLocaleDateString('th-TH')}`, { align: "center" })
@@ -1044,7 +1098,7 @@ router.get("/report/average-products/pdf", async (req, res) => {
 
         doc.fontSize(16).text("สรุปภาพรวม", { underline: true });
         doc.moveDown(0.5);
-        doc.fontSize(12)
+        doc.fontSize(16)
             .text(`• จำนวนสินค้าทั้งหมด: ${items.length} รายการ`)
             .text(`• จำนวนรวมทั้งหมด: ${totalQty} หน่วย`)
             .text(`• มูลค่ารวมทั้งหมด: ฿${totalValue.toFixed(2)}`)
@@ -1054,46 +1108,127 @@ router.get("/report/average-products/pdf", async (req, res) => {
             .text(`• สาขากระบี่: ${locationCounts["Krabi"]} รายการ`)
             .moveDown(2);
 
-        // Product Table (English Headers)
+        // Adjust column widths to fit within 1 inch margins
+        const availableWidth = doc.page.width - (margin * 2);
+        
+        // Adjusted column widths - increased ID column width
         const columns = {
-            category: 50,
-            name: 190,
-            location: 60,
-            quantity: 50,
-            price: 50,
-            amount: 50,
-            reorder: 50,
-            date: 90
+            category: Math.floor(availableWidth * 0.14),    // Increased for full ID display
+            name: Math.floor(availableWidth * 0.26),      // Slightly reduced
+            location: Math.floor(availableWidth * 0.09),
+            quantity: Math.floor(availableWidth * 0.08),
+            price: Math.floor(availableWidth * 0.12),
+            amount: Math.floor(availableWidth * 0.12),
+            reorder: Math.floor(availableWidth * 0.09),
+            date: Math.floor(availableWidth * 0.10)      // Slightly reduced
         };
 
         let currentY = doc.y;
+        const leftMargin = margin;
+        const cellPadding = 3;
         
-        // Table Header (English)
+        // Table Header with increased height to prevent overlap
         const drawHeader = () => {
-            doc.fontSize(16)
-                .text("ID", 50, currentY, { width: columns.category })
-                .text("Product Name", 50 + columns.category, currentY, { width: columns.name })
-                .text("Location", 50 + columns.category + columns.name, currentY, { width: columns.location })
-                .text("Qty", 50 + columns.category + columns.name + columns.location, currentY, { width: columns.quantity })
-                .text("Price", 50 + columns.category + columns.name + columns.location + columns.quantity, currentY, { width: columns.price })
-                .text("Amount", 50 + columns.category + columns.name + columns.location + columns.quantity + columns.price, currentY, { width: columns.amount })
-                .text("Reorder", 50 + columns.category + columns.name + columns.location + columns.quantity + columns.price + columns.amount, currentY, { width: columns.reorder })
-                .text("Date", 50 + columns.category + columns.name + columns.location + columns.quantity + columns.price + columns.amount + columns.reorder, currentY, { width: columns.date });
+            let xPos = leftMargin;
             
-            currentY += 20;
-            doc.moveTo(50, currentY)
-                .lineTo(50 + Object.values(columns).reduce((a, b) => a + b) + 35, currentY)
+            // Increase the header height significantly
+            const headerHeight = 45;  // Increased from 35 to 45
+            
+            doc.fillColor('#333333').fontSize(16);
+            
+            // Draw header background
+            doc.rect(leftMargin, currentY - 5, availableWidth, headerHeight)
+               .fillColor('#f2f2f2')
+               .fill();
+            
+            doc.fillColor('#333333'); // Reset text color
+            
+            // Improved vertical centering for all header cells
+            const textY = currentY + (headerHeight / 2) - 10; // Calculate center position
+            
+            // Category/ID header - vertically centered
+            doc.text("ID", xPos + cellPadding, textY, { 
+                width: columns.category - (cellPadding * 2),
+                align: 'left'
+            });
+            xPos += columns.category;
+            
+            // Continue with other headers - using the same textY value for all
+            doc.text("Product Name", xPos + cellPadding, textY, { 
+                width: columns.name - (cellPadding * 2),
+                align: 'left'
+            });
+            xPos += columns.name;
+            
+            // Product name header - vertically centered
+            doc.text("Product Name", xPos + cellPadding, currentY + 5, { 
+                width: columns.name - (cellPadding * 2),
+                align: 'left'
+            });
+            xPos += columns.name;
+            
+            // Location header - vertically centered
+            doc.text("Location", xPos + cellPadding, currentY + 5, { 
+                width: columns.location - (cellPadding * 2),
+                align: 'left'
+            });
+            xPos += columns.location;
+            
+            // Quantity header - vertically centered
+            doc.text("Qty", xPos + cellPadding, currentY + 5, { 
+                width: columns.quantity - (cellPadding * 2),
+                align: 'right'
+            });
+            xPos += columns.quantity;
+            
+            // Price header - vertically centered
+            doc.text("Price", xPos + cellPadding, currentY + 5, { 
+                width: columns.price - (cellPadding * 2),
+                align: 'right'
+            });
+            xPos += columns.price;
+            
+            // Amount header - vertically centered
+            doc.text("Amount", xPos + cellPadding, currentY + 5, { 
+                width: columns.amount - (cellPadding * 2),
+                align: 'right'
+            });
+            xPos += columns.amount;
+            
+            // Reorder header - vertically centered
+            doc.text("Reorder", xPos + cellPadding, currentY + 5, { 
+                width: columns.reorder - (cellPadding * 2),
+                align: 'right'
+            });
+            xPos += columns.reorder;
+            
+            // Date header - vertically centered
+            doc.text("Date", xPos + cellPadding, currentY + 5, { 
+                width: columns.date - (cellPadding * 2),
+                align: 'left'
+            });
+            
+            // Update current Y position after header
+            currentY += headerHeight;
+                
+                // Draw header bottom border
+                doc.strokeColor('#000000')
+                .lineWidth(1)
+                .moveTo(leftMargin, currentY)
+                .lineTo(leftMargin + availableWidth, currentY)
                 .stroke();
-            currentY += 10;
+               
+            currentY += 10; // Add extra space after header
         };
 
         drawHeader();
 
-        // Table Rows (Thai Content)
+        // Table Rows with improved formatting and larger font
         items.forEach((item, index) => {
-            if (currentY > 700) {
+            // Check if we need a new page
+            if (currentY > doc.page.height - margin - 60) {
                 doc.addPage();
-                currentY = 50;
+                currentY = margin;
                 doc.font('ThaiFont');
                 drawHeader();
             }
@@ -1102,18 +1237,123 @@ router.get("/report/average-products/pdf", async (req, res) => {
             const locationName = item.location === 'Nakhon Si Thammarat' ? 'นครศรีฯ' : 'กระบี่';
             const itemDate = item.createdAt?.toLocaleDateString('th-TH') || '-';
             const categoryName = item.categoryID?.categoryName || 'ไม่ระบุหมวดหมู่';
+            
+            // Calculate row height based on content - increased for larger font
+            let rowHeight = 30; // Further increased to prevent overlap
+            const maxTextWidth = columns.name - (cellPadding * 2);
+            const nameText = item.name || '-';
+            
+            // Check if name text needs multiple lines
+            if (doc.widthOfString(nameText) > maxTextWidth) {
+                // Calculate height needed for wrapped text
+                const nameHeight = doc.heightOfString(nameText, { width: maxTextWidth });
+                rowHeight = Math.max(rowHeight, nameHeight + 8); // More padding for safety
+            }
 
-            doc.fontSize(10)
-                .text(categoryName, 50, currentY, { width: columns.category })
-                .text(item.name || '-', 50 + columns.category, currentY, { width: columns.name, ellipsis: true })
-                .text(locationName, 50 + columns.category + columns.name, currentY, { width: columns.location })
-                .text((item.qty || 0).toString(), 50 + columns.category + columns.name + columns.location, currentY, { width: columns.quantity })
-                .text((item.price || 0).toFixed(2), 50 + columns.category + columns.name + columns.location + columns.quantity, currentY, { width: columns.price })
-                .text(amount.toFixed(2), 50 + columns.category + columns.name + columns.location + columns.quantity + columns.price, currentY, { width: columns.amount })
-                .text((item.reorderPoint || 0).toString(), 50 + columns.category + columns.name + columns.location + columns.quantity + columns.price + columns.amount, currentY, { width: columns.reorder })
-                .text(itemDate, 50 + columns.category + columns.name + columns.location + columns.quantity + columns.price + columns.amount + columns.reorder, currentY, { width: columns.date });
+            let xPos = leftMargin;
+            
+            // Apply alternating row background for better readability
+            if (index % 2 === 1) {
+                doc.rect(leftMargin, currentY - 2, availableWidth, rowHeight)
+                   .fillColor('#f9f9f9')
+                   .fill();
+                doc.fillColor('#000000'); // Reset text color
+            }
+            
+            doc.fontSize(16);
+            
+            // Category/ID - with full display now that width is increased
+            doc.text(categoryName, xPos + cellPadding, currentY, { 
+                width: columns.category - (cellPadding * 2),
+                height: rowHeight,
+                ellipsis: true
+            });
+            xPos += columns.category;
+            
+            // Product name - with proper wrapping for long text
+            if (doc.widthOfString(nameText) > maxTextWidth) {
+                const textOptions = { 
+                    width: maxTextWidth,
+                    height: rowHeight,
+                    ellipsis: true
+                };
+                
+                // Adjust truncation logic if needed
+                if (doc.heightOfString(nameText, { width: maxTextWidth }) > rowHeight * 1.5) {
+                    // Truncate with ellipsis if too long
+                    let truncatedName = nameText;
+                    while (doc.heightOfString(truncatedName + "...", { width: maxTextWidth }) > rowHeight * 1.5 && 
+                           truncatedName.length > 6) {
+                        truncatedName = truncatedName.substring(0, truncatedName.length - 1);
+                    }
+                    doc.text(truncatedName + "...", xPos + cellPadding, currentY, textOptions);
+                } else {
+                    // Use normal wrapping
+                    doc.text(nameText, xPos + cellPadding, currentY, textOptions);
+                }
+            } else {
+                // Normal handling for short names
+                doc.text(nameText, xPos + cellPadding, currentY, { 
+                    width: columns.name - (cellPadding * 2),
+                    height: rowHeight
+                });
+            }
+            xPos += columns.name;
+            
+            // Location
+            doc.text(locationName, xPos + cellPadding, currentY, { 
+                width: columns.location - (cellPadding * 2),
+                height: rowHeight
+            });
+            xPos += columns.location;
+            
+            // Quantity (right-aligned)
+            doc.text((item.qty || 0).toString(), xPos + cellPadding, currentY, { 
+                width: columns.quantity - (cellPadding * 2),
+                align: 'right',
+                height: rowHeight
+            });
+            xPos += columns.quantity;
+            
+            // Price (right-aligned)
+            doc.text((item.price || 0).toFixed(2), xPos + cellPadding, currentY, { 
+                width: columns.price - (cellPadding * 2),
+                align: 'right',
+                height: rowHeight
+            });
+            xPos += columns.price;
+            
+            // Amount (right-aligned)
+            doc.text(amount.toFixed(2), xPos + cellPadding, currentY, { 
+                width: columns.amount - (cellPadding * 2),
+                align: 'right',
+                height: rowHeight
+            });
+            xPos += columns.amount;
+            
+            // Reorder point (right-aligned)
+            doc.text((item.reorderPoint || 0).toString(), xPos + cellPadding, currentY, { 
+                width: columns.reorder - (cellPadding * 2),
+                align: 'right',
+                height: rowHeight
+            });
+            xPos += columns.reorder;
+            
+            // Date
+            doc.text(itemDate, xPos + cellPadding, currentY, { 
+                width: columns.date - (cellPadding * 2),
+                height: rowHeight
+            });
 
-            currentY += 25;
+            // Draw light gray border between rows
+            currentY += rowHeight + 5; // Added extra spacing between rows
+            doc.strokeColor('#E0E0E0')
+                .lineWidth(0.5)
+                .moveTo(leftMargin, currentY - 5)
+                .lineTo(leftMargin + availableWidth, currentY - 5)
+                .stroke()
+                .strokeColor('#000000') // Reset to black
+                .lineWidth(1);
         });
 
         // Error handling for PDF generation
@@ -1122,30 +1362,54 @@ router.get("/report/average-products/pdf", async (req, res) => {
             res.status(500).end();
         });
 
-        // Signature Section
+        // Check if we need a new page for signatures
+        if (doc.y > doc.page.height - margin - 180) {
+            doc.addPage();
+            doc.font('ThaiFont');
+        }
+
+        // Signature Section with improved side-by-side layout
         doc.moveDown(4);
-        doc.fontSize(12)
-            .text("ผู้จัดทำรายงาน", 100, doc.y, { align: "center" })
+        
+        // Calculate positions for signatures to be clearly side by side
+        const pageWidth = doc.page.width;
+        const signatureWidth = 180;
+        const signatureGap = 40;
+        
+        // Calculate starting positions to place signatures side by side
+        const leftSignatureX = (pageWidth / 2) - signatureWidth - (signatureGap / 2);
+        const rightSignatureX = (pageWidth / 2) + (signatureGap / 2);
+        const signatureY = doc.y;
+        
+        // Left signature
+        doc.fontSize(16)
+            .text("ผู้จัดทำรายงาน", leftSignatureX, signatureY, { width: signatureWidth, align: "center" })
             .moveDown(2)
-            .text("_________________________", 100, doc.y, { align: "center" })
+            .text("_________________________", leftSignatureX, doc.y, { width: signatureWidth, align: "center" })
             .moveDown(0.5)
-            .text("(ชื่อ)", 100, doc.y, { align: "center" })
+            .text("(                                )", leftSignatureX, doc.y, { width: signatureWidth, align: "center" })
             .moveDown(0.5)
-            .text("ตำแหน่ง: _____________________", 100, doc.y, { align: "center" });
+            .text("ตำแหน่ง: _____________________", leftSignatureX, doc.y, { width: signatureWidth, align: "center" });
 
-        const rightColumnY = doc.y - 120;
-        doc.fontSize(12)
-            .text("ผู้ตรวจสอบรายงาน", 400, rightColumnY, { align: "center" })
+        // Reset Y position for right signature to align with left signature
+        doc.y = signatureY;
+        
+        // Right signature - aligned side by side with left signature
+        doc.fontSize(16)
+            .text("ผู้ตรวจสอบรายงาน", rightSignatureX, signatureY, { width: signatureWidth, align: "center" })
             .moveDown(2)
-            .text("_________________________", 400, doc.y, { align: "center" })
+            .text("_________________________", rightSignatureX, doc.y, { width: signatureWidth, align: "center" })
             .moveDown(0.5)
-            .text("(ชื่อ)", 400, doc.y, { align: "center" })
+            .text("(                                )", rightSignatureX, doc.y, { width: signatureWidth, align: "center" })
             .moveDown(0.5)
-            .text("ตำแหน่ง: _____________________", 400, doc.y, { align: "center" });
+            .text("ตำแหน่ง: _____________________", rightSignatureX, doc.y, { width: signatureWidth, align: "center" });
 
-        // Timestamp
-        doc.moveDown(3);
-        doc.fontSize(10)
+        // Move below both signatures
+        doc.x = margin;
+        doc.y = doc.y + 100;
+        
+        // Timestamp and page footer
+        doc.fontSize(16)
             .text(`พิมพ์เมื่อ: ${new Date().toLocaleDateString('th-TH')} ${new Date().toLocaleTimeString('th-TH')}`, 
                 { align: "center" });
 
@@ -1229,6 +1493,55 @@ router.post("/import", async (req, res) => {
     console.error("Error importing data:", error);
     res.status(500).json({ message: "Error importing data", error: error.message });
   }
+});
+
+router.post("/restock", async (req, res) => {
+    try {
+        const { categoryID, name, price, qty, location } = req.body;
+
+        if (!categoryID || !name || !price || !qty || !location) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        let existingItem = await Item.findOne({ categoryID, name, location });
+
+        if (existingItem) {
+            // ✅ ถ้าพบสินค้าเดิม → อัปเดตจำนวนสินค้า (เพิ่ม `qty`)
+            existingItem.qty += qty;
+            existingItem.activityLogs.push({
+                action: "restock",
+                qty,
+                purchasePrice: price,
+                date: new Date(),
+                status: "restocked" // ✅ เพิ่ม status
+            });
+            await existingItem.save();
+        } else {
+            // ❌ ถ้าไม่มีสินค้าเดิม → เพิ่มสินค้าตัวใหม่เข้าไป
+            existingItem = new Item({
+                categoryID,
+                name,
+                price,
+                qty,
+                location,
+                activityLogs: [
+                    {
+                        action: "restock",
+                        qty,
+                        purchasePrice: price,
+                        date: new Date(),
+                        status: "restocked" // ✅ เพิ่ม status
+                    }
+                ]
+            });
+            await existingItem.save();
+        }
+
+        res.json({ message: "Restocked successfully", item: existingItem });
+    } catch (error) {
+        console.error("🚨 Error restocking item:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
 });
 
 module.exports = router;

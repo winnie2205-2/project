@@ -64,20 +64,22 @@ function displayLowStockItems() {
     const itemsToDisplay = filteredItems.slice(startIndex, endIndex);
 
     if (itemsToDisplay.length === 0) {
-        reportBody.innerHTML = `<tr><td colspan="7" class="text-center">No low stock items found</td></tr>`;
+        reportBody.innerHTML = `<tr><td colspan="8" class="text-center">No low stock items found</td></tr>`;
         return;
     }
 
-    itemsToDisplay.forEach(item => {
+    itemsToDisplay.forEach((item, index) => {
         const row = document.createElement('tr');
+        const itemNumber = startIndex + index + 1;
         row.innerHTML = `
+            <td class="text-center">${itemNumber}</td>
             <td class="text-start">${item.categoryName || 'N/A'}</td>
             <td class="text-start">${item.name}</td>
             <td class="text-start">${item.location}</td>
             <td class="text-end">${formatInteger(item.qty)}</td>
             <td class="text-end">${formatCurrency(item.price)}</td>
             <td class="text-end">${formatInteger(item.reorderPoint)}</td>
-            <td class="text-start">${formatDateTime(item.createdAt)}</td>
+            <td class="text-center">${formatDateTime(item.createdAt)}</td>
         `;
         reportBody.appendChild(row);
     });

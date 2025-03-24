@@ -68,15 +68,17 @@ function displayItems() {
     if (itemsToDisplay.length === 0) {
         reportBody.innerHTML = `
             <tr>
-                <td colspan="7" class="text-center">No withdrawal records found</td>
+                <td colspan="9" class="text-center">No withdrawal records found</td>
             </tr>
         `;
         return;
     }
 
-    itemsToDisplay.forEach(item => {
+    itemsToDisplay.forEach((item, index) => {
         const row = document.createElement('tr');
+        const itemNumber = startIndex + index + 1;
         row.innerHTML = `
+            <td class="text-center">${itemNumber}</td>
             <td class="text-start">${item.categoryName || 'N/A'}</td>
             <td class="text-start">${item.itemName || 'N/A'}</td>
             <td class="text-start">${item.location || 'N/A'}</td>

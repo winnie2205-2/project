@@ -127,11 +127,11 @@ function displayItems(items) {
                     <input type="checkbox" class="item-checkbox" data-id="${item._id}" ${item.status === 'Disable' ? 'disabled' : ''}>
                 </td>  
                 <td class="text-center">${startIndex + index + 1}</td>  
-                <td class="text-center">${item.categoryName}</td> 
-                <td class="text-center">${item.name}</td>  
-                <td class="text-center">${item.location}</td>  
-                <td class="text-center">${item.qty.toLocaleString()}</td>  
-                <td class="text-center">${formattedPrice}</td>  
+                <td class="text-start">${item.categoryName}</td> 
+                <td class="text-start">${item.name}</td>  
+                <td class="text-start">${item.location}</td>  
+                <td class="text-end">${item.qty.toLocaleString()}</td>  
+                <td class="text-end">${formattedPrice}</td>  
                 <td class="text-center">${item.status}</td>  
                 <td class="text-center" style="white-space: nowrap;">
                     <div class="d-flex justify-content-center gap-1">
@@ -644,7 +644,7 @@ async function showEditBox(_id) {
                                     <input class="form-control" type="text" id="productPrice" placeholder="Price (THB)" value="${formattedPrice}">
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center mb-3 reorder-status-box">
-                                    <div class="reorder-box">
+                                     <div class="reorder-box">
                                         <label class="form-label" for="reorderPoint">Reorder Point*</label>
                                         <div class="input-group">
                                             <button class="btn btn-outline-secondary decrease-reorder" type="button" id="decreaseReorder">-</button>
@@ -683,6 +683,34 @@ async function showEditBox(_id) {
             background: 'transparent',
             didOpen: () => {
                 const popup = Swal.getPopup();
+                const reorderInput = popup.querySelector("#reorderPoint");
+
+                // Handle decrease button
+                popup.querySelector("#decreaseReorder").addEventListener("click", () => {
+                    const currentValue = parseInt(reorderInput.value) || 0;
+                    reorderInput.value = Math.max(0, currentValue - 1);
+                });
+
+                // Handle increase button
+                popup.querySelector("#increaseReorder").addEventListener("click", () => {
+                    const currentValue = parseInt(reorderInput.value) || 0;
+                    reorderInput.value = currentValue + 1;
+                });
+
+                // Handle manual input
+                reorderInput.addEventListener("input", (e) => {
+                    // Remove any non-numeric characters
+                    let value = e.target.value.replace(/[^0-9]/g, '');
+                    value = value === '' ? 0 : parseInt(value);
+                    e.target.value = Math.max(0, value);
+                });
+
+                // Handle blur event to ensure valid value
+                reorderInput.addEventListener("blur", (e) => {
+                    if (e.target.value === '') {
+                        e.target.value = 0;
+                    }
+                });
 
                 // Real-time price formatting
                 popup.querySelector("#productPrice").addEventListener("input", function (event) {

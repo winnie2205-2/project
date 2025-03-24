@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (backendLocation && backendLocation !== 'all') {
                 params.append('location', backendLocation);
             }
-
+    
             const response = await fetch(`${API_BASE}/overview/chart?${params}`);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
@@ -80,10 +80,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Destroy existing charts
             if (monthlyChart) monthlyChart.destroy();
             if (productTrendsChart) productTrendsChart.destroy();
-
-            // Create new charts
-            renderMonthlyChart(data.monthlyOverview);
-            renderProductTrendsChart(data.categoryOverview);
+    
+            // Create new charts with validation
+            if (data.monthlyOverview) {
+                renderAnnualRevenueChart(data.monthlyOverview);
+            }
+            if (data.categoryOverview) {
+                renderTopProductsChart(data.categoryOverview);
+            }
             
             return data;
         } catch (error) {
@@ -91,78 +95,164 @@ document.addEventListener('DOMContentLoaded', function() {
             throw error;
         }
     }
+    
+   // Modified chart functions
+function renderAnnualRevenueChart(monthlyData) {
+    const ctx = document.getElementById('monthlyChart');
+    if (monthlyChart) monthlyChart.destroy();
 
-    // Chart functions
-    function renderMonthlyChart(monthlyData) {
-        const ctx = document.getElementById('monthlyChart');
-        const sortedData = monthlyData.sort((a, b) => 
-            new Date(a.month) - new Date(b.month)
-        );
-
-        monthlyChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: sortedData.map(d => d.month),
-                datasets: [{
-                    label: 'Profit',
-                    data: sortedData.map(d => d.profit),
-                    borderColor: '#4BC0C0',
-                    tension: 0.4
-                }, {
-                    label: 'Expense',
-                    data: sortedData.map(d => d.expense),
-                    borderColor: '#FF6384',
-                    tension: 0.4
-                }]
-            },
-            options: chartOptions('y')
-        });
+    // Validate and process data
+    if (!Array.isArray(monthlyData) || monthlyData.length === 0) {
+        console.error('Invalid monthly data format');
+        return;
     }
 
-    function renderProductTrendsChart(categoryData) {
-        const ctx = document.getElementById('productTrendsChart');
-        const sortedData = categoryData.sort((a, b) => b.profit - a.profit);
+    try {
+        // Get the latest year from available data
+        const latestYear = Math.max(...monthlyData.map(d => 
+            new Date(d.month).getFullYear()
+        ));
+
+        // Aggregate data for the latest year
+        const annualSummary = monthlyData
+            .filter(d => new Date(d.month).getFullYear() === latestYear)
+            .reduce((acc, curr) => ({
+                profit: acc.profit + (curr.profit || 0),
+                expense: acc.expense + (curr.expense || 0)
+            }), { profit: 0, expense: 0 });
+
+        monthlyChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [`${latestYear} Annual Summary`],
+                datasets: [
+                    {
+                        label: 'Profit',
+                        data: [annualSummary.profit],
+                        backgroundColor: '#4BC0C0'
+                    },
+                    {
+                        label: 'Expense',
+                        data: [annualSummary.expense],
+                        backgroundColor: '#FF6384'
+                    }
+                ]
+            },
+            options: simplifiedChartOptions('y', true)
+        });
+    } catch (error) {
+        console.error('Error processing annual data:', error);
+        showError('Could not display annual summary chart');
+    }
+}
+
+function renderTopCategoriesChart(categoryData) {
+    const ctx = document.getElementById('productTrendsChart');
+    if (productTrendsChart) productTrendsChart.destroy();
+
+    // Validate and process data
+    if (!Array.isArray(categoryData) || categoryData.length === 0) {
+        console.error('Invalid category data format');
+        return;
+    }
+
+    try {
+        // Get top 10 products by profit
+        const sortedData = categoryData
+            .sort((a, b) => b.profit - a.profit)
+            .slice(0, 10);
 
         productTrendsChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: sortedData.map(d => d.category),
+                labels: sortedData.map(d => d.productName), // ใช้ productName แทน category
                 datasets: [{
                     label: 'Profit',
                     data: sortedData.map(d => d.profit),
                     backgroundColor: '#36A2EB'
                 }]
             },
-            options: {
-                ...chartOptions('x'),
-                indexAxis: 'y',
-            }
+            options: simplifiedChartOptions('x', false)
         });
+    } catch (error) {
+        console.error('Error processing category data:', error);
+        showError('Could not display product trends chart');
     }
+}
 
-    // Helper functions
-    function chartOptions(axis) {
-        return {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: (ctx) => 
-                            `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y || ctx.parsed.x)}`
-                    }
-                }
+// Modified data fetching
+async function fetchChartData(frontendLocation) {
+    try {
+        const backendLocation = locationMap[frontendLocation];
+        const params = new URLSearchParams();
+        
+        if (backendLocation && backendLocation !== 'all') {
+            params.append('location', backendLocation);
+        }
+
+        const response = await fetch(`${API_BASE}/overview/chart?${params}`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const data = await response.json();
+        
+        // Destroy existing charts
+        if (monthlyChart) monthlyChart.destroy();
+        if (productTrendsChart) productTrendsChart.destroy();
+
+        // Create new charts with validation
+        if (data.monthlyOverview) {
+            renderAnnualRevenueChart(data.monthlyOverview);
+        }
+        if (data.categoryOverview) {
+            renderTopCategoriesChart(data.categoryOverview);
+        }
+        
+        return data;
+    } catch (error) {
+        showError('Failed to load chart data');
+        throw error;
+    }
+}
+// Add this function to your code
+function simplifiedChartOptions(axis, showLegend) {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { 
+                display: showLegend,
+                position: 'top'
             },
-            scales: {
-                [axis]: {
-                    ticks: {
-                        callback: (value) => formatCurrency(value)
-                    }
+            tooltip: {
+                callbacks: {
+                    label: (ctx) => 
+                        `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y || ctx.parsed.x)}`
                 }
             }
-        };
-    }
-
+        },
+        scales: {
+            [axis]: {
+                beginAtZero: true,
+                ticks: {
+                    callback: (value) => formatCurrency(value),
+                    autoSkip: true,
+                    maxRotation: 0
+                },
+                grid: { display: false }
+            },
+            x: { 
+                display: axis === 'y',
+                grid: { display: false }
+            },
+            y: { 
+                display: axis === 'x',
+                grid: { display: false }
+            }
+        },
+        animation: false,
+        borderWidth: 0
+    };
+}
     function updateDisplay(data) {
         updateElements.totalProfit.textContent = formatCurrency(data.totalProfit || 0);
         updateElements.totalExpense.textContent = formatCurrency(data.totalExpense || 0);

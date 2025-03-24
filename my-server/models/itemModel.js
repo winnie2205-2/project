@@ -1,23 +1,27 @@
 const mongoose = require("mongoose");
 
-const itemSchema = new mongoose.Schema({
-  categoryID: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
-  name: { type: String, required: true },
-  location: { type: String, required: true },
-  qty: { type: Number, required: true, default: 0 }, // ค่าพื้นฐานต้องเป็นตัวเลข
-  price: { type: Number, required: true },
-  status: { type: String, enum: ["Enable", "Disable"], default: "Enable" },
-  reorderPoint: { type: Number, default: null },
-  activityLogs: [
-    {
-      action: { type: String, enum: ["withdraw"], required: true },
-      qty: { type: Number, required: true },
-      date: { type: Date, default: Date.now },
-      user: { type: String, required: true },
-      status: { type: String, enum: ["withdrawn"], required: true }
-    }
-  ]
-}, { versionKey: false, timestamps: true });
+const itemSchema = new mongoose.Schema(
+  {
+    categoryID: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
+    name: { type: String, required: true },
+    location: { type: String, required: true },
+    qty: { type: Number, required: true, default: 0 },
+    price: { type: Number, required: true },
+    status: { type: String, enum: ["Enable", "Disable"], default: "Enable" },
+    reorderPoint: { type: Number, default: null },
+    activityLogs: [
+      {
+        action: { type: String, enum: ["withdraw", "restock"], required: true }, // ✅ เพิ่ม "restock"
+        qty: { type: Number, required: true },
+        purchasePrice: { type: Number },
+        date: { type: Date, default: Date.now },
+        user: { type: String, required: false }, // ✅ ไม่ต้องเป็น required
+        status: { type: String, enum: ["withdrawn", "restocked"], required: true } // ✅ เพิ่ม "restocked"
+      }
+    ]
+  },
+  { versionKey: false, timestamps: true }
+);
 
 itemSchema.pre(/^find/, function (next) {
   this.populate("categoryID", "categoryName");
