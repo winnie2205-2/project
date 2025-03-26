@@ -491,6 +491,38 @@ router.post('/withdraw', async (req, res) => {
         res.status(500).json({ message: 'Server error during withdrawal' });
     }
 });
+
+// Add product in the selection box
+router.post('/api/items/add', async (req, res) => {
+    try {
+        const { itemId, qty, user } = req.body;
+        
+        // Find the item
+        const item = await Item.findById(itemId);
+        if (!item) {
+            return res.status(404).json({ message: 'Item not found' });
+        }
+
+        // Update quantity
+        item.qty += parseInt(qty);
+        
+        // Update history/log
+        item.history.push({
+            action: 'add',
+            qty: parseInt(qty),
+            user: user,
+            date: new Date()
+        });
+
+        // Save the updated item
+        await item.save();
+
+        res.status(200).json(item);
+    } catch (error) {
+        console.error('Error adding to inventory:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
 // Fix for router.get('/report/withdrawals')
 router.get('/report/withdrawals', async (req, res) => {
     try {
@@ -543,17 +575,13 @@ router.get("/report/withdrawals/pdf", async (req, res) => {
         
         // Process location filter
         if (location) {
-            // Handle for single or multiple locations
             if (typeof location === 'string') {
                 if (location.toLowerCase() === "both") {
-                    // Use full location names as stored in the database
                     locationFilter["location"] = { $in: ["Nakhon Si Thammarat", "Krabi"] };
                 } else {
-                    // Use the location value directly without mapping
                     locationFilter["location"] = location;
                 }
             } else if (Array.isArray(location)) {
-                // Use the location values directly from the array
                 locationFilter["location"] = { $in: location };
             }
         }
@@ -584,7 +612,6 @@ router.get("/report/withdrawals/pdf", async (req, res) => {
                 .map(log => ({
                     categoryName: item.categoryID?.categoryName || "ไม่ระบุหมวดหมู่",
                     itemName: item.name,
-                    // Correctly map based on stored location values
                     location: item.location === "Nakhon Si Thammarat" ? "นครศรีฯ" : "กระบี่",
                     remainingQty: log.remainingQty || 0,
                     price: item.price || 0,
@@ -599,8 +626,27 @@ router.get("/report/withdrawals/pdf", async (req, res) => {
         const totalWithdrawn = withdrawals.reduce((sum, item) => sum + item.withdrawnQty, 0);
         const totalValue = withdrawals.reduce((sum, item) => sum + (item.withdrawnQty * item.price), 0);
 
-        // Create PDF
-        const doc = new PDFDocument({ margin: 50, size: 'A4' });
+        // Formatting functions
+        const formatInteger = (num) => num !== undefined && num !== null ? num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0';
+        const formatCurrency = (num) => num !== undefined && num !== null ? num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+        const formatDateOnly = (date) => date ? new Date(date).toLocaleDateString('th-TH', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }) : 'N/A';
+
+        // PDF Setup - Set 1 inch margins (72 points per inch)
+        const margin = 72;
+        const doc = new PDFDocument({ 
+            margins: {
+                top: margin,
+                bottom: margin,
+                left: margin,
+                right: margin
+            }, 
+            size: 'A4' 
+        });
+        
         const filename = `รายงานการเบิกจ่าย_${Date.now()}.pdf`;
         res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
         res.setHeader("Content-Type", "application/pdf");
@@ -609,174 +655,314 @@ router.get("/report/withdrawals/pdf", async (req, res) => {
         if (fs.existsSync(thaiFontPath)) {
             doc.registerFont('ThaiFont', thaiFontPath);
             doc.font('ThaiFont');
+        } else {
+            console.error("Thai font not found at:", thaiFontPath);
+            return res.status(500).json({ error: "Font configuration error" });
         }
+        
         doc.pipe(res);
 
-        // Header Section
-        doc.fontSize(18).text("รายงานการเบิกจ่ายสินค้า", { align: "center" });
-        doc.moveDown(0.5);
-
-        // Format location text based on selection
-        let locationText = "ไม่ระบุสถานที่";
-        
-        if (Array.isArray(location)) {
-            if (location.includes("Nakhon Si Thammarat") && location.includes("Krabi")) {
-                locationText = "ทั้งสองสาขา (นครศรีธรรมราชและกระบี่)";
-            } else if (location.includes("Nakhon Si Thammarat")) {
-                locationText = "สาขานครศรีธรรมราช";
-            } else if (location.includes("Krabi")) {
-                locationText = "สาขากระบี่";
-            }
-        } else if (typeof location === 'string') {
-            if (location.toLowerCase() === "both") {
-                locationText = "ทั้งสองสาขา (นครศรีธรรมราชและกระบี่)";
-            } else if (location === "Nakhon Si Thammarat") {
-                locationText = "สาขานครศรีธรรมราช";
-            } else if (location === "Krabi") {
-                locationText = "สาขากระบี่";
-            }
+        // Add logo at the top
+        const logoPath = 'D:/Project/my-app/assets/img/log sky.png';// Adjust path as needed
+        if (fs.existsSync(logoPath)) {
+            const logoWidth = 80;
+            const logoHeight = 80;
+            const pageCenter = doc.page.width / 2;
+            doc.image(logoPath, pageCenter - (logoWidth / 2), margin, {
+                width: logoWidth,
+                height: logoHeight
+            });
+            doc.moveDown(6); // Space after logo
+        } else {
+            console.warn("Logo file not found at:", logoPath);
         }
+
+        // Header Section
+        doc.fontSize(20).text("รายงานการเบิกจ่ายสินค้า", { align: "center" });
+        doc.moveDown(0.5);
+        
+        const locationText = location === 'both' ? 'ทั้งสองสาขา' : 
+            location === 'Nakhon Si Thammarat' ? 'สาขานครศรีธรรมราช' : 
+            location === 'Krabi' ? 'สาขากระบี่' : location;
 
         let dateRangeText = '';
         if (startDate && endDate) {
             dateRangeText = `ระหว่างวันที่ ${new Date(startDate).toLocaleDateString('th-TH')} ถึง ${new Date(endDate).toLocaleDateString('th-TH')}`;
         }
-
-        doc.fontSize(12)
+        
+        doc.fontSize(16)
             .text(`สถานที่: ${locationText}`, { align: "center" })
             .text(dateRangeText, { align: "center" })
             .text(`วันที่ออกรายงาน: ${new Date().toLocaleDateString('th-TH')}`, { align: "center" })
-            .moveDown(1.5);
 
         // Summary Section
+        const locationCounts = { 
+            "นครศรีฯ": 0, 
+            "กระบี่": 0 
+        };
+        const categories = {};
+
+        withdrawals.forEach(item => {
+            locationCounts[item.location]++;
+            
+            const catName = item.categoryName || 'ไม่ระบุหมวดหมู่';
+            categories[catName] = (categories[catName] || 0) + 1;
+        });
+
         doc.fontSize(16).text("สรุปภาพรวม", { underline: true });
         doc.moveDown(0.5);
-        doc.fontSize(12)
-            .text(`จำนวนรวมที่เบิก: ${parseFloat(totalWithdrawn).toLocaleString('en-US', { 
+        doc.fontSize(16)
+            .text(`• จำนวนการเบิกจ่าย: ${withdrawals.length} รายการ`)
+            .text(`• มูลค่าการเบิกจ่ายทั้งหมด: THB${totalValue.toLocaleString('en-US', { 
                 minimumFractionDigits: 2, 
                 maximumFractionDigits: 2 
-            })} หน่วย`)
-            .text(`มูลค่ารวมทั้งหมด: ฿${totalValue.toFixed(2)}`)
-            .moveDown(2);
+            })}`)
+            .moveDown(0.5)
+            .text(`• สาขานครศรีธรรมราช: ${locationCounts["นครศรีฯ"]} รายการ`)
+            .text(`• สาขากระบี่: ${locationCounts["กระบี่"]} รายการ`)
+            .moveDown(0.5);
 
-        // Table Setup - Fixed column widths and alignment
+        // Adjust column widths to fit within 1 inch margins
+        const availableWidth = doc.page.width - (margin * 2);
+        const cellPadding = 3;
+        
+        // Adjusted column widths with more space for name
         const columns = {
-            category: 50,    // หมวดหมู่
-            name: 190,       // ชื่อสินค้า
-            location: 60,    // สถานที่
-            remainingQty: 50,// คงเหลือ
-            price: 50,       // ราคา
-            withdrawnQty: 50,// เบิกแล้ว
-            date: 90         // วันที่
-        };
-
-        // Pre-calculate column positions - Fixed positioning
-        const columnPositions = {
-            category: 50,
-            name: 50 + columns.category,
-            location: 50 + columns.category + columns.name,
-            remainingQty: 50 + columns.category + columns.name + columns.location,
-            price: 50 + columns.category + columns.name + columns.location + columns.remainingQty,
-            withdrawnQty: 50 + columns.category + columns.name + columns.location + columns.remainingQty + columns.price,
-            date: 50 + columns.category + columns.name + columns.location + columns.remainingQty + columns.price + columns.withdrawnQty
+            category: Math.floor(availableWidth * 0.14),
+            name: Math.floor(availableWidth * 0.25),  // Increased width for name
+            location: Math.floor(availableWidth * 0.12),
+            remainingQty: Math.floor(availableWidth * 0.12),
+            price: Math.floor(availableWidth * 0.12),
+            withdrawnQty: Math.floor(availableWidth * 0.12),
+            date: Math.floor(availableWidth * 0.12)
         };
 
         let currentY = doc.y;
+        const leftMargin = margin;
 
-        // English Table Headers with fixed alignment
+        // Table Header
         const drawHeader = () => {
-            doc.fontSize(12)
-                .text("ID", columnPositions.category, currentY, { width: columns.category })
-                .text("Product Name", columnPositions.name, currentY, { width: columns.name })
-                .text("Location", columnPositions.location, currentY, { width: columns.location })
-                .text("Remaining", columnPositions.remainingQty, currentY, { width: columns.remainingQty, align: "right" })
-                .text("Price", columnPositions.price, currentY, { width: columns.price, align: "right" })
-                .text("Withdrawn", columnPositions.withdrawnQty, currentY, { width: columns.withdrawnQty, align: "right" })
-                .text("Date", columnPositions.date, currentY, { width: columns.date });
+            let xPos = leftMargin;
+            
+            const headerHeight = 30;
+            
+            doc.fillColor('#333333').fontSize(14);
+            
+            // Draw header background
+            doc.rect(leftMargin, currentY - 5, availableWidth, headerHeight)
+               .fillColor('#f2f2f2')
+               .fill();
+            
+            doc.fillColor('#333333');
+            
+            const textY = currentY + (headerHeight / 2) - 10;
 
-            // Draw header underline
-            currentY += 20;
-            doc.moveTo(50, currentY)
-                .lineTo(columnPositions.date + columns.date, currentY)
+            // Category header
+            doc.text("ID", xPos + cellPadding, textY, { 
+                width: columns.category - (cellPadding * 2),
+                align: 'left'
+            });
+            xPos += columns.category;
+            
+            // Product Name header
+            doc.text("Product Name", xPos + cellPadding, textY, { 
+                width: columns.name - (cellPadding * 2),
+                align: 'left'
+            });
+            xPos += columns.name;
+            
+            // Location header
+            doc.text("Location", xPos + cellPadding, textY, { 
+                width: columns.location - (cellPadding * 2),
+                align: 'left'
+            });
+            xPos += columns.location;
+            
+            // Remaining Qty header
+            doc.text("Remaining", xPos + cellPadding, textY, { 
+                width: columns.remainingQty - (cellPadding * 2),
+                align: 'right'
+            });
+            xPos += columns.remainingQty;
+            
+            // Price header
+            doc.text("Price", xPos + cellPadding, textY, { 
+                width: columns.price - (cellPadding * 2),
+                align: 'right'
+            });
+            xPos += columns.price;
+            
+            // Withdrawn Qty header
+            doc.text("Withdrawn", xPos + cellPadding, textY, { 
+                width: columns.withdrawnQty - (cellPadding * 2),
+                align: 'right'
+            });
+            xPos += columns.withdrawnQty;
+            
+            // Date header
+            doc.text("Date", xPos + cellPadding, textY, { 
+                width: columns.date - (cellPadding * 2),
+                align: 'center'
+            });
+            
+            // Update current Y position after header
+            currentY += headerHeight;
+            
+            // Draw header bottom border
+            doc.strokeColor('#000000')
+                .lineWidth(1)
+                .moveTo(leftMargin, currentY)
+                .lineTo(leftMargin + availableWidth, currentY)
                 .stroke();
-            currentY += 10;
+               
+            currentY += 10; // Add extra space after header
         };
 
         drawHeader();
 
-        // Table Rows with fixed alignment
+        // Table Rows
         withdrawals.forEach((item, index) => {
-            if (currentY > 700) {
+            // Check if we need a new page
+            if (currentY > doc.page.height - margin - 60) {
                 doc.addPage();
-                currentY = 50;
+                currentY = margin;
                 doc.font('ThaiFont');
                 drawHeader();
             }
 
-            // Formatting functions
-            const formatNumber = num => parseFloat(num).toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
+            let xPos = leftMargin;
+            const rowHeight = 40;  // Increased height to accommodate longer names
             
-            const formatDate = date => new Date(date).toLocaleDateString('th-TH');
+            // Apply alternating row background
+            if (index % 2 === 1) {
+                doc.rect(leftMargin, currentY - 2, availableWidth, rowHeight)
+                   .fillColor('#f9f9f9')
+                   .fill();
+                doc.fillColor('#000000');
+            }
+            
+            doc.fontSize(14);
+            
+            // Category
+            doc.text(item.categoryName || 'N/A', xPos + cellPadding, currentY, { 
+                width: columns.category - (cellPadding * 2),
+                height: rowHeight,
+                ellipsis: true  // Add ellipsis if text is too long
+            });
+            xPos += columns.category;
+            
+            // Product Name - Use word wrapping to prevent overlap
+            doc.text(item.itemName || 'N/A', xPos + cellPadding, currentY, { 
+                width: columns.name - (cellPadding * 2),
+                height: rowHeight,
+                align: 'left',
+                ellipsis: true  // Add ellipsis if text is too long
+            });
+            xPos += columns.name;
+            
+            // Location
+            doc.text(item.location || 'N/A', xPos + cellPadding, currentY, { 
+                width: columns.location - (cellPadding * 2),
+                height: rowHeight
+            });
+            xPos += columns.location;
+            
+            // Remaining Qty (right-aligned)
+            doc.text(formatInteger(item.remainingQty), xPos + cellPadding, currentY, { 
+                width: columns.remainingQty - (cellPadding * 2),
+                align: 'right',
+                height: rowHeight
+            });
+            xPos += columns.remainingQty;
+            
+            // Price (right-aligned)
+            doc.text(formatCurrency(item.price), xPos + cellPadding, currentY, { 
+                width: columns.price - (cellPadding * 2),
+                align: 'right',
+                height: rowHeight
+            });
+            xPos += columns.price;
+            
+            // Withdrawn Qty (right-aligned)
+            doc.text(formatInteger(item.withdrawnQty), xPos + cellPadding, currentY, { 
+                width: columns.withdrawnQty - (cellPadding * 2),
+                align: 'right',
+                height: rowHeight
+            });
+            xPos += columns.withdrawnQty;
+            
+            // Date (center-aligned) - Now using formatDateOnly
+            doc.text(formatDateOnly(item.date), xPos + cellPadding, currentY, { 
+                width: columns.date - (cellPadding * 2),
+                align: 'center',
+                height: rowHeight
+            });
 
-            // Draw row using exact column positions
-            doc.fontSize(10)
-                .text(item.categoryName, columnPositions.category, currentY, { 
-                    width: columns.category,
-                    ellipsis: true 
-                })
-                .text(item.itemName, columnPositions.name, currentY, { 
-                    width: columns.name,
-                    ellipsis: true 
-                })
-                .text(item.location, columnPositions.location, currentY, { 
-                    width: columns.location 
-                })
-                .text(formatNumber(item.remainingQty), columnPositions.remainingQty, currentY, { 
-                    width: columns.remainingQty,
-                    align: "right" 
-                })
-                .text(`฿${formatNumber(item.price)}`, columnPositions.price, currentY, { 
-                    width: columns.price,
-                    align: "right" 
-                })
-                .text(formatNumber(item.withdrawnQty), columnPositions.withdrawnQty, currentY, { 
-                    width: columns.withdrawnQty,
-                    align: "right" 
-                })
-                .text(formatDate(item.date), columnPositions.date, currentY, { 
-                    width: columns.date 
-                });
-
-            currentY += 25;
+            // Update Y position
+            currentY += rowHeight + 5;
+            
+            // Draw light gray border between rows
+            doc.strokeColor('#E0E0E0')
+                .lineWidth(0.5)
+                .moveTo(leftMargin, currentY - 5)
+                .lineTo(leftMargin + availableWidth, currentY - 5)
+                .stroke()
+                .strokeColor('#000000')
+                .lineWidth(1);
         });
 
-        // Signature Section (Remains at the bottom)
+        // Error handling for PDF generation
+        doc.on('error', (err) => {
+            console.error("PDF Generation Error:", err);
+            res.status(500).end();
+        });
+
+        // Check if we need a new page for signatures
+        if (doc.y > doc.page.height - margin - 180) {
+            doc.addPage();
+            doc.font('ThaiFont');
+        }
+
+        // Signature Section
         doc.moveDown(4);
-        doc.fontSize(12)
-            .text("ผู้จัดทำรายงาน", 100, doc.y, { align: "center" })
+        
+        const pageWidth = doc.page.width;
+        const signatureWidth = 180;
+        const signatureGap = 40;
+        
+        const leftSignatureX = (pageWidth / 2) - signatureWidth - (signatureGap / 2);
+        const rightSignatureX = (pageWidth / 2) + (signatureGap / 2);
+        const signatureY = doc.y;
+        
+        // Left signature
+        doc.fontSize(16)
+            .text("ผู้จัดทำรายงาน", leftSignatureX, signatureY, { width: signatureWidth, align: "center" })
             .moveDown(2)
-            .text("_________________________", 100, doc.y, { align: "center" })
+            .text("_________________________", leftSignatureX, doc.y, { width: signatureWidth, align: "center" })
             .moveDown(0.5)
-            .text("(ชื่อ)", 100, doc.y, { align: "center" })
+            .text("(                                )", leftSignatureX, doc.y, { width: signatureWidth, align: "center" })
             .moveDown(0.5)
-            .text("ตำแหน่ง: _____________________", 100, doc.y, { align: "center" });
+            .text("ตำแหน่ง: _____________________", leftSignatureX, doc.y, { width: signatureWidth, align: "center" });
 
-        const rightColumnY = doc.y - 120;
-        doc.fontSize(12)
-            .text("ผู้ตรวจสอบรายงาน", 400, rightColumnY, { align: "center" })
+        // Reset Y position for right signature to align with left signature
+        doc.y = signatureY;
+        
+        // Right signature
+        doc.fontSize(16)
+            .text("ผู้ตรวจสอบรายงาน", rightSignatureX, signatureY, { width: signatureWidth, align: "center" })
             .moveDown(2)
-            .text("_________________________", 400, doc.y, { align: "center" })
+            .text("_________________________", rightSignatureX, doc.y, { width: signatureWidth, align: "center" })
             .moveDown(0.5)
-            .text("(ชื่อ)", 400, doc.y, { align: "center" })
+            .text("(                                )", rightSignatureX, doc.y, { width: signatureWidth, align: "center" })
             .moveDown(0.5)
-            .text("ตำแหน่ง: _____________________", 400, doc.y, { align: "center" });
+            .text("ตำแหน่ง: _____________________", rightSignatureX, doc.y, { width: signatureWidth, align: "center" });
 
-        // Timestamp
-        doc.moveDown(3);
-        doc.fontSize(10)
+        // Move below both signatures
+        doc.x = margin;
+        doc.y = doc.y + 100;
+        
+        // Timestamp and page footer
+        doc.fontSize(16)
             .text(`พิมพ์เมื่อ: ${new Date().toLocaleDateString('th-TH')} ${new Date().toLocaleTimeString('th-TH')}`, 
                 { align: "center" });
 
@@ -791,32 +977,60 @@ router.get("/report/withdrawals/pdf", async (req, res) => {
 // Enhanced Low Stock PDF report with Thai font support and date filtering
 router.get("/report/low-stock/pdf", async (req, res) => {
     try {
-        const { location } = req.query; // Add location filter
+        const { location, startDate, endDate } = req.query;
+        let filter = {
+            $expr: { $lte: ["$qty", "$reorderPoint"] }
+        };
 
         // Build location filter
-        let locationFilter = {};
         if (location) {
-            if (typeof location === 'string') {
-                if (location.toLowerCase() === "both") {
-                    locationFilter["location"] = { $in: ["Nakhon Si Thammarat", "Krabi"] };
-                } else {
-                    locationFilter["location"] = location;
-                }
-            } else if (Array.isArray(location)) {
-                locationFilter["location"] = { $in: location };
+            if (location.toLowerCase() === "both") {
+                filter["location"] = { $in: ["Nakhon Si Thammarat", "Krabi"] };
+            } else {
+                filter["location"] = location;
             }
         }
 
-        // Update query to include location filter
-        const items = await Item.find({ 
-            $expr: { $lte: ["$qty", "$reorderPoint"] },
-            ...locationFilter
-        })
-        .sort({ qty: 1 })
-        .populate("categoryID", "categoryName");
+        // Build date filter
+        if (startDate && endDate) {
+            filter["createdAt"] = {
+                $gte: new Date(startDate),
+                $lte: new Date(new Date(endDate).setHours(23, 59, 59))
+            };
+        }
 
-        // Create PDF
-        const doc = new PDFDocument({ margin: 50, size: 'A4' });
+        // Formatting functions
+        const formatInteger = (num) => num !== undefined && num !== null ? num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0';
+        const formatCurrency = (num) => num !== undefined && num !== null ? num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+        const formatDateTime = (date) => date ? new Date(date).toLocaleString('th-TH', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        }) : 'N/A';
+
+        // Query items
+        const items = await Item.find(filter)
+            .sort({ qty: 1 })
+            .populate("categoryID", "categoryName");
+
+        if (!items.length) {
+            return res.status(404).json({ error: "ไม่พบข้อมูลสินค้า" });
+        }
+
+        // PDF Setup - Set 1 inch margins (72 points per inch)
+        const margin = 72;
+        const doc = new PDFDocument({ 
+            margins: {
+                top: margin,
+                bottom: margin,
+                left: margin,
+                right: margin
+            }, 
+            size: 'A4' 
+        });
+        
         const filename = `รายงานสินค้าต่ำกว่าจุดสั่งซื้อ_${Date.now()}.pdf`;
         res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
         res.setHeader("Content-Type", "application/pdf");
@@ -825,157 +1039,325 @@ router.get("/report/low-stock/pdf", async (req, res) => {
         if (fs.existsSync(thaiFontPath)) {
             doc.registerFont('ThaiFont', thaiFontPath);
             doc.font('ThaiFont');
+        } else {
+            console.error("Thai font not found at:", thaiFontPath);
+            return res.status(500).json({ error: "Font configuration error" });
         }
+        
         doc.pipe(res);
 
+        // Add logo at the top
+        const logoPath = 'D:/Project/my-app/assets/img/log sky.png';// Adjust path as needed
+        if (fs.existsSync(logoPath)) {
+            const logoWidth = 80;
+            const logoHeight = 80;
+            const pageCenter = doc.page.width / 2;
+            doc.image(logoPath, pageCenter - (logoWidth / 2), margin, {
+                width: logoWidth,
+                height: logoHeight
+            });
+            doc.moveDown(6); // Space after logo
+        } else {
+            console.warn("Logo file not found at:", logoPath);
+        }
+
         // Header Section
-        doc.fontSize(18).text("รายงานสินค้าต่ำกว่าจุดสั่งซื้อ", { align: "center" });
+        doc.fontSize(20).text("รายงานสินค้าต่ำกว่าจุดสั่งซื้อ", { align: "center" });
         doc.moveDown(0.5);
-        doc.fontSize(12)
+        
+        const locationText = location === 'both' ? 'ทั้งสองสาขา' : 
+            location === 'Nakhon Si Thammarat' ? 'สาขานครศรีธรรมราช' : 
+            location === 'Krabi' ? 'สาขากระบี่' : location;
+
+        let dateRangeText = '';
+        if (startDate && endDate) {
+            dateRangeText = `ระหว่างวันที่ ${new Date(startDate).toLocaleDateString('th-TH')} ถึง ${new Date(endDate).toLocaleDateString('th-TH')}`;
+        }
+        
+        doc.fontSize(16)
+            .text(`สถานที่: ${locationText}`, { align: "center" })
+            .text(dateRangeText, { align: "center" })
             .text(`วันที่ออกรายงาน: ${new Date().toLocaleDateString('th-TH')}`, { align: "center" })
-            .moveDown(1.5);
 
         // Summary Section
         let totalItems = items.length;
         let totalUnderstockValue = items.reduce((sum, item) => sum + (item.qty * item.price), 0);
-        let locationCounts = { nst: 0, krabi: 0 };
-        let categoryCounts = {};
+        const locationCounts = { 
+            "Nakhon Si Thammarat": 0, 
+            "Krabi": 0 
+        };
+        const categories = {};
 
         items.forEach(item => {
-            locationCounts[item.location] = (locationCounts[item.location] || 0) + 1;
+            // Fixed location counting
+            if (locationCounts.hasOwnProperty(item.location)) {
+                locationCounts[item.location]++;
+            }
+            
             const catName = item.categoryID?.categoryName || 'ไม่ระบุหมวดหมู่';
-            categoryCounts[catName] = (categoryCounts[catName] || 0) + 1;
+            categories[catName] = (categories[catName] || 0) + 1;
         });
 
-        doc.fontSize(14).text("สรุปภาพรวม", { underline: true });
+        doc.fontSize(16).text("สรุปภาพรวม", { underline: true });
         doc.moveDown(0.5);
-        doc.fontSize(12)
+        doc.fontSize(16)
             .text(`• จำนวนสินค้าต่ำกว่าจุดสั่งซื้อ: ${totalItems} รายการ`)
-            .text(`• มูลค่าสินค้าคงคลังปัจจุบัน: ฿${totalUnderstockValue.toFixed(2)}`)
+            .text(`• มูลค่าสินค้าต่ำกว่าจุดสั่งซื้อ: THB${totalUnderstockValue.toLocaleString('en-US', { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+            })}`)
             .moveDown(0.5)
-            .text(`• สาขานครศรีธรรมราช: ${locationCounts.nst} รายการ`)
-            .text(`• สาขากระบี่: ${locationCounts.krabi} รายการ`)
-            .moveDown(2);
+            // Fixed location display names
+            .text(`• สาขานครศรีธรรมราช: ${locationCounts["Nakhon Si Thammarat"]} รายการ`)
+            .text(`• สาขากระบี่: ${locationCounts["Krabi"]} รายการ`)
+            .moveDown(0.5);
 
-        // Table Setup
+        // Adjust column widths to fit within 1 inch margins
+        const availableWidth = doc.page.width - (margin * 2);
+        const cellPadding = 3;
+        
+        // Adjust column widths
         const columns = {
-            category: 90,
-            name: 140,
-            location: 70,
-            currentQty: 70,
-            price: 70,
-            reorderPoint: 80,
-            date: 90
-        };
 
-        const columnPositions = {
-            category: 50,
-            name: 50 + columns.category,
-            location: 50 + columns.category + columns.name,
-            currentQty: 50 + columns.category + columns.name + columns.location,
-            price: 50 + columns.category + columns.name + columns.location + columns.currentQty,
-            reorderPoint: 50 + columns.category + columns.name + columns.location + columns.currentQty + columns.price,
-            date: 50 + columns.category + columns.name + columns.location + columns.currentQty + columns.price + columns.reorderPoint
+            category: Math.floor(availableWidth * 0.14),
+            name: Math.floor(availableWidth * 0.25),
+            location: Math.floor(availableWidth * 0.12),
+            quantity: Math.floor(availableWidth * 0.10),
+            price: Math.floor(availableWidth * 0.10),
+            reorderPoint: Math.floor(availableWidth * 0.16),
+            date: Math.floor(availableWidth * 0.12)
         };
 
         let currentY = doc.y;
+        const leftMargin = margin;
 
-        // Table Headers - Changed to match what's being displayed
+        // Table Header
         const drawHeader = () => {
-            doc.fontSize(12)
-                .text("Category", columnPositions.category, currentY, { width: columns.category })
-                .text("Product Name", columnPositions.name, currentY, { width: columns.name })
-                .text("Location", columnPositions.location, currentY, { width: columns.location })
-                .text("Current Qty", columnPositions.currentQty, currentY, { width: columns.currentQty, align: "right" })
-                .text("Price", columnPositions.price, currentY, { width: columns.price, align: "right" })
-                .text("Reorder Point", columnPositions.reorderPoint, currentY, { width: columns.reorderPoint, align: "right" })
-                .text("Created Date", columnPositions.date, currentY, { width: columns.date });
-
-            currentY += 20;
-            doc.moveTo(50, currentY)
-                .lineTo(columnPositions.date + columns.date, currentY)
+            let xPos = leftMargin;
+            
+            const headerHeight = 30;
+            
+            doc.fillColor('#333333').fontSize(14);
+            
+            // Draw header background
+            doc.rect(leftMargin, currentY - 5, availableWidth, headerHeight)
+               .fillColor('#f2f2f2')
+               .fill();
+            
+            doc.fillColor('#333333');
+            
+            const textY = currentY + (headerHeight / 2) - 10;
+            
+            // Category header
+            doc.text("ID", xPos + cellPadding, textY, { 
+                width: columns.category - (cellPadding * 2),
+                align: 'left'
+            });
+            xPos += columns.category;
+            
+            // Product Name header
+            doc.text("Product Name", xPos + cellPadding, textY, { 
+                width: columns.name - (cellPadding * 2),
+                align: 'left'
+            });
+            xPos += columns.name;
+            
+            // Location header
+            doc.text("Location", xPos + cellPadding, textY, { 
+                width: columns.location - (cellPadding * 2),
+                align: 'left'
+            });
+            xPos += columns.location;
+            
+            // Quantity header
+            doc.text("Quantity", xPos + cellPadding, textY, { 
+                width: columns.quantity - (cellPadding * 2),
+                align: 'right'
+            });
+            xPos += columns.quantity;
+            
+            // Price header
+            doc.text("Price", xPos + cellPadding, textY, { 
+                width: columns.price - (cellPadding * 2),
+                align: 'right'
+            });
+            xPos += columns.price;
+            
+            // Reorder Point header
+            doc.text("Reorder Point", xPos + cellPadding, textY, { 
+                width: columns.reorderPoint - (cellPadding * 2),
+                align: 'right'
+            });
+            xPos += columns.reorderPoint;
+            
+            // Date header
+            doc.text("Date", xPos + cellPadding, textY, { 
+                width: columns.date - (cellPadding * 2),
+                align: 'center'
+            });
+            
+            // Update current Y position after header
+            currentY += headerHeight;
+            
+            // Draw header bottom border
+            doc.strokeColor('#000000')
+                .lineWidth(1)
+                .moveTo(leftMargin, currentY)
+                .lineTo(leftMargin + availableWidth, currentY)
                 .stroke();
-            currentY += 10;
+               
+            currentY += 10; // Add extra space after header
         };
 
         drawHeader();
 
         // Table Rows
         items.forEach((item, index) => {
-            if (currentY > 700) {
+            // Check if we need a new page
+            if (currentY > doc.page.height - margin - 60) {
                 doc.addPage();
-                currentY = 50;
+                currentY = margin;
                 doc.font('ThaiFont');
                 drawHeader();
             }
 
-            const formatNumber = num => parseFloat(num).toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
+            let xPos = leftMargin;
+            const rowHeight = 30;
+            
+            // Apply alternating row background
+            if (index % 2 === 1) {
+                doc.rect(leftMargin, currentY - 2, availableWidth, rowHeight)
+                   .fillColor('#f9f9f9')
+                   .fill();
+                doc.fillColor('#000000');
+            }
+            
+            doc.fontSize(14);
+     
+            // Category
+            doc.text(item.categoryID?.categoryName || 'N/A', xPos + cellPadding, currentY, { 
+                width: columns.category - (cellPadding * 2),
+                height: rowHeight
+            });
+            xPos += columns.category;
+            
+            // Product Name
+            doc.text(item.name || 'N/A', xPos + cellPadding, currentY, { 
+                width: columns.name - (cellPadding * 2),
+                height: rowHeight
+            });
+            xPos += columns.name;
+            
+            // Location
+            doc.text(item.location || 'N/A', xPos + cellPadding, currentY, { 
+                width: columns.location - (cellPadding * 2),
+                height: rowHeight
+            });
+            xPos += columns.location;
+            
+            // Quantity (right-aligned)
+            doc.text(formatInteger(item.qty), xPos + cellPadding, currentY, { 
+                width: columns.quantity - (cellPadding * 2),
+                align: 'right',
+                height: rowHeight
+            });
+            xPos += columns.quantity;
+            
+            // Price (right-aligned)
+            doc.text(formatCurrency(item.price), xPos + cellPadding, currentY, { 
+                width: columns.price - (cellPadding * 2),
+                align: 'right',
+                height: rowHeight
+            });
+            xPos += columns.price;
+            
+            // Reorder Point (right-aligned)
+            doc.text(formatInteger(item.reorderPoint), xPos + cellPadding, currentY, { 
+                width: columns.reorderPoint - (cellPadding * 2),
+                align: 'right',
+                height: rowHeight
+            });
+            xPos += columns.reorderPoint;
+            
+            // Date (center-aligned)
+            doc.text(formatDateTime(item.createdAt), xPos + cellPadding, currentY, { 
+                width: columns.date - (cellPadding * 2),
+                align: 'center',
+                height: rowHeight
             });
 
-            doc.fontSize(10)
-                .text(item.categoryID?.categoryName || 'ไม่ระบุหมวดหมู่', columnPositions.category, currentY, { 
-                    width: columns.category,
-                    ellipsis: true 
-                })
-                .text(item.name, columnPositions.name, currentY, { 
-                    width: columns.name,
-                    ellipsis: true 
-                })
-                .text(item.location === 'Nakhon Si Thammarat' ? 'นครศรีฯ' : 'กระบี่', columnPositions.location, currentY, { 
-                    width: columns.location 
-                })
-                .text(formatNumber(item.qty), columnPositions.currentQty, currentY, { 
-                    width: columns.currentQty,
-                    align: "right" 
-                })
-                .text(`฿${formatNumber(item.price)}`, columnPositions.price, currentY, { 
-                    width: columns.price,
-                    align: "right" 
-                })
-                .text(formatNumber(item.reorderPoint), columnPositions.reorderPoint, currentY, { 
-                    width: columns.reorderPoint,
-                    align: "right" 
-                })
-                .text(new Date(item.createdAt).toLocaleDateString('th-TH'), columnPositions.date, currentY, { 
-                    width: columns.date 
-                });
-
-            currentY += 25;
+            // Update Y position
+            currentY += rowHeight + 5;
+            
+            // Draw light gray border between rows
+            doc.strokeColor('#E0E0E0')
+                .lineWidth(0.5)
+                .moveTo(leftMargin, currentY - 5)
+                .lineTo(leftMargin + availableWidth, currentY - 5)
+                .stroke()
+                .strokeColor('#000000')
+                .lineWidth(1);
         });
+
+        // Error handling for PDF generation
+        doc.on('error', (err) => {
+            console.error("PDF Generation Error:", err);
+            res.status(500).end();
+        });
+
+        // Check if we need a new page for signatures
+        if (doc.y > doc.page.height - margin - 180) {
+            doc.addPage();
+            doc.font('ThaiFont');
+        }
 
         // Signature Section
         doc.moveDown(4);
-        doc.fontSize(12)
-            .text("ผู้จัดทำรายงาน", 100, doc.y, { align: "center" })
+        
+        const pageWidth = doc.page.width;
+        const signatureWidth = 180;
+        const signatureGap = 40;
+        
+        const leftSignatureX = (pageWidth / 2) - signatureWidth - (signatureGap / 2);
+        const rightSignatureX = (pageWidth / 2) + (signatureGap / 2);
+        const signatureY = doc.y;
+        
+        // Left signature
+        doc.fontSize(16)
+            .text("ผู้จัดทำรายงาน", leftSignatureX, signatureY, { width: signatureWidth, align: "center" })
             .moveDown(2)
-            .text("_________________________", 100, doc.y, { align: "center" })
+            .text("_________________________", leftSignatureX, doc.y, { width: signatureWidth, align: "center" })
             .moveDown(0.5)
-            .text("(ชื่อ)", 100, doc.y, { align: "center" })
+            .text("(                                )", leftSignatureX, doc.y, { width: signatureWidth, align: "center" })
             .moveDown(0.5)
-            .text("ตำแหน่ง: _____________________", 100, doc.y, { align: "center" });
+            .text("ตำแหน่ง: _____________________", leftSignatureX, doc.y, { width: signatureWidth, align: "center" });
 
-        const rightColumnY = doc.y - 120;
-        doc.fontSize(12)
-            .text("ผู้ตรวจสอบรายงาน", 400, rightColumnY, { align: "center" })
+        // Reset Y position for right signature to align with left signature
+        doc.y = signatureY;
+        
+        // Right signature
+        doc.fontSize(16)
+            .text("ผู้ตรวจสอบรายงาน", rightSignatureX, signatureY, { width: signatureWidth, align: "center" })
             .moveDown(2)
-            .text("_________________________", 400, doc.y, { align: "center" })
+            .text("_________________________", rightSignatureX, doc.y, { width: signatureWidth, align: "center" })
             .moveDown(0.5)
-            .text("(ชื่อ)", 400, doc.y, { align: "center" })
+            .text("(                                )", rightSignatureX, doc.y, { width: signatureWidth, align: "center" })
             .moveDown(0.5)
-            .text("ตำแหน่ง: _____________________", 400, doc.y, { align: "center" });
+            .text("ตำแหน่ง: _____________________", rightSignatureX, doc.y, { width: signatureWidth, align: "center" });
 
-        // Timestamp
-        doc.moveDown(3);
-        doc.fontSize(10)
+        // Move below both signatures
+        doc.x = margin;
+        doc.y = doc.y + 100;
+        
+        // Timestamp and page footer
+        doc.fontSize(16)
             .text(`พิมพ์เมื่อ: ${new Date().toLocaleDateString('th-TH')} ${new Date().toLocaleTimeString('th-TH')}`, 
                 { align: "center" });
 
         doc.end();
 
     } catch (error) {
-        console.error("🚨 เกิดข้อผิดพลาดในการสร้าง PDF:", error);
+        console.error("🚨 An error occurred while creating the PDF", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
@@ -1008,7 +1390,7 @@ router.get("/report/average-products/pdf", async (req, res) => {
             .populate("categoryID", "categoryName");
 
         if (!items.length) {
-            return res.status(404).json({ error: "ไม่พบข้อมูลสินค้า" });
+            return res.status(404).json({ error: "Product information not found" });
         }
 
         // PDF Setup - Set 1 inch margins (72 points per inch)
@@ -1072,7 +1454,6 @@ router.get("/report/average-products/pdf", async (req, res) => {
             .text(`สถานที่: ${locationText}`, { align: "center" })
             .text(dateRangeText, { align: "center" })
             .text(`วันที่ออกรายงาน: ${new Date().toLocaleDateString('th-TH')}`, { align: "center" })
-            .moveDown(1.5);
 
         // Summary Section
         let totalQty = 0;
@@ -1101,12 +1482,15 @@ router.get("/report/average-products/pdf", async (req, res) => {
         doc.fontSize(16)
             .text(`• จำนวนสินค้าทั้งหมด: ${items.length} รายการ`)
             .text(`• จำนวนรวมทั้งหมด: ${totalQty} หน่วย`)
-            .text(`• มูลค่ารวมทั้งหมด: ฿${totalValue.toFixed(2)}`)
+            .text(`• มูลค่ารวมทั้งหมด: THB${totalValue.toLocaleString('en-US', { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+            })}`)
             .moveDown(0.5)
             // Fixed location display names
             .text(`• สาขานครศรีธรรมราช: ${locationCounts["Nakhon Si Thammarat"]} รายการ`)
             .text(`• สาขากระบี่: ${locationCounts["Krabi"]} รายการ`)
-            .moveDown(2);
+            .moveDown(0.5);
 
         // Adjust column widths to fit within 1 inch margins
         const availableWidth = doc.page.width - (margin * 2);
@@ -1115,7 +1499,7 @@ router.get("/report/average-products/pdf", async (req, res) => {
         const columns = {
             category: Math.floor(availableWidth * 0.14),    // Increased for full ID display
             name: Math.floor(availableWidth * 0.26),      // Slightly reduced
-            location: Math.floor(availableWidth * 0.09),
+            location: Math.floor(availableWidth * 0.10),
             quantity: Math.floor(availableWidth * 0.08),
             price: Math.floor(availableWidth * 0.12),
             amount: Math.floor(availableWidth * 0.12),
@@ -1132,9 +1516,9 @@ router.get("/report/average-products/pdf", async (req, res) => {
             let xPos = leftMargin;
             
             // Increase the header height significantly
-            const headerHeight = 45;  // Increased from 35 to 45
+            const headerHeight = 30;  // Increased from 35 to 45
             
-            doc.fillColor('#333333').fontSize(16);
+            doc.fillColor('#333333').fontSize(14);
             
             // Draw header background
             doc.rect(leftMargin, currentY - 5, availableWidth, headerHeight)
@@ -1155,13 +1539,6 @@ router.get("/report/average-products/pdf", async (req, res) => {
             
             // Continue with other headers - using the same textY value for all
             doc.text("Product Name", xPos + cellPadding, textY, { 
-                width: columns.name - (cellPadding * 2),
-                align: 'left'
-            });
-            xPos += columns.name;
-            
-            // Product name header - vertically centered
-            doc.text("Product Name", xPos + cellPadding, currentY + 5, { 
                 width: columns.name - (cellPadding * 2),
                 align: 'left'
             });
@@ -1260,7 +1637,7 @@ router.get("/report/average-products/pdf", async (req, res) => {
                 doc.fillColor('#000000'); // Reset text color
             }
             
-            doc.fontSize(16);
+            doc.fontSize(14);
             
             // Category/ID - with full display now that width is increased
             doc.text(categoryName, xPos + cellPadding, currentY, { 
@@ -1416,7 +1793,7 @@ router.get("/report/average-products/pdf", async (req, res) => {
         doc.end();
 
     } catch (error) {
-        console.error("🚨 เกิดข้อผิดพลาดในการสร้าง PDF:", error);
+        console.error("🚨 An error occurred while creating the PDF", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });

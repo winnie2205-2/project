@@ -142,7 +142,7 @@ input, textarea, select {
   margin: auto; /* Ensures centering */
 }
 
-#withdrawButton, #deleteButton {
+#withdrawButton, #deleteButton, #addButton {
   border: none; /* Remove border */
   margin-left: 5px; 
   background: transparent; /* Remove background */

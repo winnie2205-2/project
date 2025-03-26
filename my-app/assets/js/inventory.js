@@ -217,16 +217,18 @@ document.getElementById('selectAllCheckbox').addEventListener('change', function
 function toggleActionButtons() {
     const withdrawButton = document.getElementById('withdrawButton');
     const deleteButton = document.getElementById('deleteButton');
+    const addButton = document.getElementById('addButton');
 
     if (selectedItems.length > 0) {
         withdrawButton.style.display = 'inline-block';
         deleteButton.style.display = 'inline-block';
+        addButton.style.display = 'inline-block';
     } else {
         withdrawButton.style.display = 'none';
         deleteButton.style.display = 'none';
+        addButton.style.display = 'none';
     }
 }
-
 // Withdraw selected items
 document.getElementById('withdrawButton').addEventListener('click', function () {
     if (selectedItems.length === 0) {
@@ -443,6 +445,212 @@ document.getElementById('withdrawButton').addEventListener('click', function () 
         }
     });
 });
+
+document.getElementById('addButton').addEventListener('click', function () {
+    if (selectedItems.length === 0) {
+        alert('Please select at least one item to add inventory to.');
+        return;
+    }
+
+    // Open the add inventory popup
+    Swal.fire({
+        html: `
+        <div id="popupContainer">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.1/dist/sweetalert2.min.css"> 
+            <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css">
+            <link rel="stylesheet" href="assets/css/style.css">
+            <link rel="stylesheet" href="assets/css/popup.css">
+            <link rel="stylesheet" href="assets/css/withdrawtable.css">
+            <div class="container justify-content-left">
+                <div class="d-flex justify-content-center">
+                    <div class="card" style="background:#ebe3ce;width:800px;max-width:inherit;">
+                        <div class="card-header text-center">
+                            <h5 style="font-weight:bold;">Add to Inventory</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Location</th>
+                                        <th>QTY to Add</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                ${selectedItems.map(id => {
+                    const item = allItems.find(item => item._id === id);
+                    return `
+                    <tr>
+                        <td>${item.categoryName}</td>
+                        <td>${item.name}</td>
+                        <td>${item.location}</td>
+                        <td>
+                            <div class="input-group justify-content-center" style="width: 150px; margin: 0 auto;">
+                                <button class="btn btn-outline-secondary decrease-qty" type="button" data-id="${item._id}">-</button>
+                                <input class="form-control text-center add-quantity" 
+                                    id="add-quantity" 
+                                    type="text" 
+                                    data-id="${item._id}"
+                                    value="1" 
+                                    style="width: 35px !important;"
+                                    min="1">
+                                <button class="btn btn-outline-secondary increase-qty" type="button" data-id="${item._id}">+</button>
+                            </div>
+                        </td>
+                    </tr>
+                    `;
+                }).join('')}
+                                </tbody>
+                            </table>
+                            <div class="d-flex justify-content-end mt-3">
+                                <button id="closeAddButton" class="btn btn-secondary me-2" type="button" style="background: #ebe3ce;color: rgb(0,0,0);width: 100px;box-shadow: 0px 0px 2px 1px;padding: 7px 12px;border-radius: 50px;">Close</button>
+                                <button id="saveAddButton" class="btn btn-success" type="button" style="background: #28aa4a;color: rgb(0,0,0);width: 100px;box-shadow: 0px 0px 2px 1px;border-radius: 50px;padding-top: 7px;padding-bottom: 7px;">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `,
+        showConfirmButton: false,
+        showCancelButton: false,
+        width: "900px",
+        background: 'transparent',
+        didOpen: () => {
+            // Event listeners for quantity buttons
+            document.querySelectorAll('.decrease-qty').forEach(button => {
+                button.addEventListener('click', function () {
+                    const input = document.querySelector(`.add-quantity[data-id='${this.dataset.id}']`);
+                    const currentValue = parseInt(input.value) || 0;
+                    const min = 1;
+                    input.value = Math.max(min, currentValue - 1);
+                });
+            });
+
+            document.querySelectorAll('.add-quantity').forEach(input => {
+                input.addEventListener('input', function (event) {
+                    const min = 1;
+                    
+                    // Remove any non-numeric characters
+                    let value = this.value.replace(/[^0-9]/g, '');
+                    
+                    // Convert to number and enforce minimum
+                    value = parseInt(value) || min;
+                    value = Math.max(min, value);
+                    
+                    this.value = value === min ? '' : value;
+                });
+
+                input.addEventListener('blur', function (event) {
+                    const min = 1;
+                    let value = parseInt(this.value) || min;
+                    this.value = value;
+                });
+            });
+
+            document.querySelectorAll('.increase-qty').forEach(button => {
+                button.addEventListener('click', function () {
+                    const input = document.querySelector(`.add-quantity[data-id='${this.dataset.id}']`);
+                    const currentValue = parseInt(input.value) || 0;
+                    input.value = currentValue + 1;
+                });
+            });
+        
+            // Save button functionality
+            document.getElementById('saveAddButton').addEventListener('click', async function () {
+                const quantities = [];
+                let isValid = true;
+            
+                document.querySelectorAll('.add-quantity').forEach(input => {
+                    const itemId = input.getAttribute('data-id');
+                    const qty = parseInt(input.value) || 0;
+            
+                    if (qty < 1) {
+                        isValid = false;
+                        input.classList.add('is-invalid');
+                    } else {
+                        quantities.push({
+                            itemId: itemId,
+                            qty: qty
+                        });
+                    }
+                });
+            
+                if (!isValid) {
+                    Swal.fire('Error', 'Some quantities are invalid. Please check values.', 'error');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/items/add', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            itemId: quantities[0]?.itemId,  // Assuming single item addition
+                            qty: quantities[0]?.qty,
+                            user: "john_doe" // Replace with actual user
+                        }),
+                    });
+
+                    if (response.ok) {
+                        // Update the frontend state
+                        const updatedItem = allItems.find(item => item._id === quantities[0].itemId);
+                        if (updatedItem) {
+                            updatedItem.qty += quantities[0].qty; // Increase the quantity
+                        }
+
+                        // Re-render the table
+                        displayItems(filteredItems);
+
+                        // Deselect the "Select All" checkbox
+                        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+                        if (selectAllCheckbox) {
+                            selectAllCheckbox.checked = false;
+                        }
+
+                        // Clear selected items
+                        selectedItems = [];
+                        toggleActionButtons(); // Hide action buttons
+
+                        Swal.fire('Success', 'Items have been added to inventory.', 'success').then(() => {
+                            Swal.close();
+                        });
+                    } else {
+                        Swal.fire('Error', 'Failed to add items to inventory.', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error during addition:', error);
+                    Swal.fire('Error', 'An error occurred while adding to inventory.', 'error');
+                }
+            });
+
+            // Close button with confirmation
+            document.getElementById('closeAddButton').addEventListener('click', function () {
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: 'The addition has not been saved. Do you want to cancel?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, cancel',
+                    cancelButtonText: 'No, keep editing'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.close();
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        // Reopen the popup if "No, keep editing" is clicked
+                        document.getElementById('addButton').click();
+                    }
+                });
+            });
+        }
+    });
+});
+
 
 // Delete selected items
 // Delete selected items
