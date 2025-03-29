@@ -93,16 +93,16 @@ const endDate = document.getElementById("end-date").value;
 
 if (!location || !startDate || !endDate) {
   Swal.fire({
-      title: "กรุณากรอกข้อมูลให้ครบถ้วน",
+      title: "Please fill in all required fields",
       icon: "warning",
-      confirmButtonText: "ตกลง"
+      confirmButtonText: "OK"
   });
   return;
 }
 
 Swal.fire({
-  title: "กำลังสร้างรายงาน PDF...",
-  text: "กรุณารอสักครู่",
+  title: "Generating PDF Report...",
+  text: "Please wait...",
   icon: "info",
   showConfirmButton: false,
   didOpen: () => Swal.showLoading(),
@@ -130,18 +130,18 @@ fetch(pdfUrl)
 
       Swal.close();
       Swal.fire({
-          title: "ดาวน์โหลดรายงานเรียบร้อย",
+          title: "Report downloaded successfully",
           icon: "success",
-          confirmButtonText: "ตกลง"
+          confirmButtonText: "OK"
       });
   })
   .catch(error => {
       Swal.close();
       Swal.fire({
-          title: "เกิดข้อผิดพลาด",
-          text: "ไม่สามารถสร้างรายงานได้",
+          title: "Error occurred",
+          text: "Failed to generate report",
           icon: "error",
-          confirmButtonText: "ตกลง"
+          confirmButtonText: "OK"
       });
   });
 }

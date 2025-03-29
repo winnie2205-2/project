@@ -1,3 +1,4 @@
+// overview.js
 document.addEventListener('DOMContentLoaded', function() {
     // Element references
     const locationSelect = document.getElementById('productLocation');
@@ -30,14 +31,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Core functions
     function loadData(location) {
-        // Clear previous errors
         errorContainer.innerHTML = '';
-        
-        fetchOverviewData(location)
-            .then(() => fetchChartData(location))
+        Promise.all([fetchOverviewData(location), fetchChartData(location)])
             .catch(error => {
                 showError(error.message);
-                console.error('Main Error:', error);
+                console.error('Loading Error:', error);
             });
     }
 
@@ -55,7 +53,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             updateDisplay(data.overview);
-            
             return data;
         } catch (error) {
             showError('Failed to load overview data');
@@ -71,208 +68,186 @@ document.addEventListener('DOMContentLoaded', function() {
             if (backendLocation && backendLocation !== 'all') {
                 params.append('location', backendLocation);
             }
-    
+
             const response = await fetch(`${API_BASE}/overview/chart?${params}`);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
-            const data = await response.json();
+            const { monthlyOverview, categoryOverview } = await response.json();
             
-            // Destroy existing charts
-            if (monthlyChart) monthlyChart.destroy();
-            if (productTrendsChart) productTrendsChart.destroy();
-    
-            // Create new charts with validation
-            if (data.monthlyOverview) {
-                renderAnnualRevenueChart(data.monthlyOverview);
-            }
-            if (data.categoryOverview) {
-                renderTopProductsChart(data.categoryOverview);
-            }
+            destroyCharts();
+            if (monthlyOverview.length) renderMonthlyChart(monthlyOverview);
+            if (categoryOverview.length) renderProductChart(categoryOverview);
             
-            return data;
+            return { monthlyOverview, categoryOverview };
         } catch (error) {
             showError('Failed to load chart data');
             throw error;
         }
     }
-    
-   // Modified chart functions
-function renderAnnualRevenueChart(monthlyData) {
-    const ctx = document.getElementById('monthlyChart');
-    if (monthlyChart) monthlyChart.destroy();
 
-    // Validate and process data
-    if (!Array.isArray(monthlyData) || monthlyData.length === 0) {
-        console.error('Invalid monthly data format');
-        return;
-    }
+    function renderMonthlyChart(monthlyData) {
+        const ctx = document.getElementById('monthlyChart').getContext('2d');
+        if (monthlyChart) monthlyChart.destroy();
 
-    try {
-        // Get the latest year from available data
-        const latestYear = Math.max(...monthlyData.map(d => 
-            new Date(d.month).getFullYear()
-        ));
+        // Group data by year
+        const yearlyData = monthlyData.reduce((acc, curr) => {
+            const year = curr.month.split(' ')[1];
+            if (!acc[year]) {
+                acc[year] = { revenue: 0, expense: 0 };
+            }
+            acc[year].revenue += curr.revenue;
+            acc[year].expense += curr.expense;
+            return acc;
+        }, {});
 
-        // Aggregate data for the latest year
-        const annualSummary = monthlyData
-            .filter(d => new Date(d.month).getFullYear() === latestYear)
-            .reduce((acc, curr) => ({
-                profit: acc.profit + (curr.profit || 0),
-                expense: acc.expense + (curr.expense || 0)
-            }), { profit: 0, expense: 0 });
+        const years = Object.keys(yearlyData);
+        const revenues = years.map(year => yearlyData[year].revenue);
+        const expenses = years.map(year => yearlyData[year].expense);
 
         monthlyChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: [`${latestYear} Annual Summary`],
-                datasets: [
-                    {
-                        label: 'Profit',
-                        data: [annualSummary.profit],
-                        backgroundColor: '#4BC0C0'
-                    },
-                    {
-                        label: 'Expense',
-                        data: [annualSummary.expense],
-                        backgroundColor: '#FF6384'
-                    }
-                ]
+                labels: years,
+                datasets: [{
+                    label: 'Revenue',
+                    data: revenues,
+                    backgroundColor: '#4BC0C0',
+                    borderWidth: 1
+                }, {
+                    label: 'Expense',
+                    data: expenses,
+                    backgroundColor: '#FF6384',
+                    borderWidth: 1
+                }]
             },
-            options: simplifiedChartOptions('y', true)
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { font: { size: 14 } }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Year' },
+                        grid: { display: false },
+                        ticks: { font: { size: 12 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => formatCurrency(value),
+                            font: { size: 12 }
+                        },
+                        grid: { color: '#f0f0f0' }
+                    }
+                }
+            }
         });
-    } catch (error) {
-        console.error('Error processing annual data:', error);
-        showError('Could not display annual summary chart');
     }
-}
-
-function renderTopCategoriesChart(categoryData) {
-    const ctx = document.getElementById('productTrendsChart');
-    if (productTrendsChart) productTrendsChart.destroy();
-
-    // Validate and process data
-    if (!Array.isArray(categoryData) || categoryData.length === 0) {
-        console.error('Invalid category data format');
-        return;
-    }
-
-    try {
-        // Get top 10 products by profit
-        const sortedData = categoryData
-            .sort((a, b) => b.profit - a.profit)
+    function renderProductChart(productData) {
+        const ctx = document.getElementById('productTrendsChart').getContext('2d');
+        if (productTrendsChart) productTrendsChart.destroy();
+    
+        const sortedProducts = productData
+            .sort((a, b) => (b.revenue - b.expense) - (a.revenue - a.expense))
             .slice(0, 10);
-
+    
         productTrendsChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: sortedData.map(d => d.productName), // ใช้ productName แทน category
+                labels: sortedProducts.map(() => ''), // Empty labels
                 datasets: [{
-                    label: 'Profit',
-                    data: sortedData.map(d => d.profit),
-                    backgroundColor: '#36A2EB'
+                    label: 'Net Profit',
+                    data: sortedProducts.map(d => d.revenue - d.expense),
+                    backgroundColor: '#36A2EB',
+                    borderWidth: 1,
+                    // Add product name to each data point
+                    productNames: sortedProducts.map(d => d.productName)
                 }]
             },
-            options: simplifiedChartOptions('x', false)
-        });
-    } catch (error) {
-        console.error('Error processing category data:', error);
-        showError('Could not display product trends chart');
-    }
-}
-
-// Modified data fetching
-async function fetchChartData(frontendLocation) {
-    try {
-        const backendLocation = locationMap[frontendLocation];
-        const params = new URLSearchParams();
-        
-        if (backendLocation && backendLocation !== 'all') {
-            params.append('location', backendLocation);
-        }
-
-        const response = await fetch(`${API_BASE}/overview/chart?${params}`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
-        const data = await response.json();
-        
-        // Destroy existing charts
-        if (monthlyChart) monthlyChart.destroy();
-        if (productTrendsChart) productTrendsChart.destroy();
-
-        // Create new charts with validation
-        if (data.monthlyOverview) {
-            renderAnnualRevenueChart(data.monthlyOverview);
-        }
-        if (data.categoryOverview) {
-            renderTopCategoriesChart(data.categoryOverview);
-        }
-        
-        return data;
-    } catch (error) {
-        showError('Failed to load chart data');
-        throw error;
-    }
-}
-// Add this function to your code
-function simplifiedChartOptions(axis, showLegend) {
-    return {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { 
-                display: showLegend,
-                position: 'top'
-            },
-            tooltip: {
-                callbacks: {
-                    label: (ctx) => 
-                        `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y || ctx.parsed.x)}`
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                // Explicitly get product name from the data
+                                const dataset = tooltipItems[0].dataset;
+                                const index = tooltipItems[0].dataIndex;
+                                return dataset.productNames[index] || 'Unknown Product';
+                            },
+                            label: function(context) {
+                                const index = context.dataIndex;
+                                const product = sortedProducts[index];
+                                return [
+                                    `Net Profit: ${formatCurrency(context.parsed.y)}`,
+                                ];
+                            }
+                        }
+                    },
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Product Name'
+                        },
+                        ticks: { 
+                            display: false // Hide x-axis ticks and labels
+                        },
+                        grid: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => formatCurrency(value),
+                            font: { size: 12 }
+                        },
+                        grid: { color: '#f0f0f0' }
+                    }
                 }
             }
-        },
-        scales: {
-            [axis]: {
-                beginAtZero: true,
-                ticks: {
-                    callback: (value) => formatCurrency(value),
-                    autoSkip: true,
-                    maxRotation: 0
-                },
-                grid: { display: false }
-            },
-            x: { 
-                display: axis === 'y',
-                grid: { display: false }
-            },
-            y: { 
-                display: axis === 'x',
-                grid: { display: false }
-            }
-        },
-        animation: false,
-        borderWidth: 0
-    };
-}
-    function updateDisplay(data) {
-        updateElements.totalProfit.textContent = formatCurrency(data.totalProfit || 0);
-        updateElements.totalExpense.textContent = formatCurrency(data.totalExpense || 0);
-        updateElements.totalLoss.textContent = formatCurrency(data.totalLoss || 0);
+        });
+    }
+    function updateDisplay({ totalRevenue, totalExpense, totalLoss }) {
+        updateElements.totalProfit.textContent = formatCurrency(totalRevenue);
+        updateElements.totalExpense.textContent = formatCurrency(totalExpense);
+        updateElements.totalLoss.textContent = formatCurrency(totalLoss);
+    }
+
+    function destroyCharts() {
+        if (monthlyChart) {
+            monthlyChart.destroy();
+            monthlyChart = null;
+        }
+        if (productTrendsChart) {
+            productTrendsChart.destroy();
+            productTrendsChart = null;
+        }
     }
 
     function formatCurrency(amount) {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'THB',
+            minimumFractionDigits: 0,
             maximumFractionDigits: 0
-        }).format(amount).replace('THB', '').trim();
+        }).format(amount);
     }
 
     function showError(message) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = 'alert alert-danger mb-2';
-        alertDiv.textContent = message;
-        errorContainer.appendChild(alertDiv);
-        
-        setTimeout(() => alertDiv.remove(), 5000);
+        errorContainer.innerHTML = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
     }
 });

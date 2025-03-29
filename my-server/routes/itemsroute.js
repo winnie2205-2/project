@@ -121,7 +121,7 @@ router.get("/overview/chart", async (req, res) => {
         let topProducts = {}; // เก็บข้อมูลสินค้า Top 10
 
         items.forEach(item => {
-            const profit = item.qty * item.price;
+            const revenue = item.qty * item.price;
             let expense = 0;
 
             item.activityLogs.forEach(log => {
@@ -134,37 +134,37 @@ router.get("/overview/chart", async (req, res) => {
             const month = new Date(item.createdAt).toLocaleString("en-US", { month: "short", year: "numeric" });
 
             if (!monthlyData[month]) {
-                monthlyData[month] = { profit: 0, expense: 0 };
+                monthlyData[month] = { revenue: 0, expense: 0 };
             }
-            monthlyData[month].profit += profit;
+            monthlyData[month].revenue += revenue;
             monthlyData[month].expense += expense;
 
             // ✅ จัดข้อมูลตามสินค้า (แทน Category Overview)
             if (!productData[item.name]) {
-                productData[item.name] = { profit: 0, expense: 0 };
+                productData[item.name] = { revenue: 0, expense: 0 };
             }
-            productData[item.name].profit += profit;
+            productData[item.name].revenue += revenue;
             productData[item.name].expense += expense;
 
             // ✅ เก็บข้อมูลสินค้า
             itemList.push({
                 name: item.name,
-                profit,
+                revenue,
                 expense
             });
 
             // ✅ จัดข้อมูลสินค้าสำหรับ Top 10
             if (!topProducts[item.name]) {
-                topProducts[item.name] = { profit: 0, expense: 0 };
+                topProducts[item.name] = { revenue: 0, expense: 0 };
             }
-            topProducts[item.name].profit += profit;
+            topProducts[item.name].revenue += revenue;
             topProducts[item.name].expense += expense;
         });
 
-        // ✅ คัดกรอง Top 10 สินค้าโดยเรียงตามกำไรสูงสุด
+        // ✅ คัดกรอง Top 10 สินค้าโดยเรียงตามรายได้สูงสุด
         const top10Products = Object.entries(topProducts)
             .map(([name, values]) => ({ name, ...values }))
-            .sort((a, b) => b.profit - a.profit)
+            .sort((a, b) => b.revenue - a.revenue)
             .slice(0, 10);
 
         res.json({
@@ -172,12 +172,12 @@ router.get("/overview/chart", async (req, res) => {
             topProducts: top10Products,
             monthlyOverview: Object.entries(monthlyData).map(([month, values]) => ({
                 month,
-                profit: values.profit,
+                revenue: values.revenue,
                 expense: values.expense
             })),
             categoryOverview: Object.entries(productData).map(([name, values]) => ({
                 productName: name,  // เปลี่ยนจาก category เป็น productName
-                profit: values.profit,
+                revenue: values.revenue,
                 expense: values.expense
             }))
         });
@@ -186,6 +186,7 @@ router.get("/overview/chart", async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
 
 router.get("/", async (req, res) => {
     try {
@@ -734,7 +735,7 @@ router.get("/report/withdrawals/pdf", async (req, res) => {
             remainingQty: Math.floor(availableWidth * 0.12),
             price: Math.floor(availableWidth * 0.12),
             withdrawnQty: Math.floor(availableWidth * 0.12),
-            date: Math.floor(availableWidth * 0.12)
+            date: Math.floor(availableWidth * 0.13)
         };
 
         let currentY = doc.y;
@@ -1002,12 +1003,10 @@ router.get("/report/low-stock/pdf", async (req, res) => {
         // Formatting functions
         const formatInteger = (num) => num !== undefined && num !== null ? num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0';
         const formatCurrency = (num) => num !== undefined && num !== null ? num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
-        const formatDateTime = (date) => date ? new Date(date).toLocaleString('th-TH', {
+        const formatDateTime = (date) => date ? new Date(date).toLocaleDateString('th-TH', {
             year: 'numeric',
             month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
+            day: '2-digit'
         }) : 'N/A';
 
         // Query items
@@ -1116,20 +1115,37 @@ router.get("/report/low-stock/pdf", async (req, res) => {
         const availableWidth = doc.page.width - (margin * 2);
         const cellPadding = 3;
         
-        // Adjust column widths
+        // Updated column widths to give more space to product name
         const columns = {
-
-            category: Math.floor(availableWidth * 0.14),
-            name: Math.floor(availableWidth * 0.25),
+            category: Math.floor(availableWidth * 0.10),
+            name: Math.floor(availableWidth * 0.30),  // Increased width for name
             location: Math.floor(availableWidth * 0.12),
             quantity: Math.floor(availableWidth * 0.10),
             price: Math.floor(availableWidth * 0.10),
             reorderPoint: Math.floor(availableWidth * 0.16),
-            date: Math.floor(availableWidth * 0.12)
+            date: Math.floor(availableWidth * 0.13)
         };
 
         let currentY = doc.y;
         const leftMargin = margin;
+
+        // Enhanced name rendering function
+        const renderMultilineName = (doc, name, xPos, currentY, width, cellPadding, rowHeight) => {
+            doc.fontSize(14);
+            
+            // Ensure full name is displayed
+            const displayName = name || 'N/A';
+            
+            // Calculate text dimensions to manage height
+            const textOptions = { 
+                width: width - (cellPadding * 2),
+                height: rowHeight,
+                align: 'left'
+            };
+            
+            // Render name, allowing it to wrap if too long
+            doc.text(displayName, xPos + cellPadding, currentY, textOptions);
+        };
 
         // Table Header
         const drawHeader = () => {
@@ -1222,7 +1238,7 @@ router.get("/report/low-stock/pdf", async (req, res) => {
             }
 
             let xPos = leftMargin;
-            const rowHeight = 30;
+            const rowHeight = 40;  // Increased row height to accommodate multiline names
             
             // Apply alternating row background
             if (index % 2 === 1) {
@@ -1241,11 +1257,16 @@ router.get("/report/low-stock/pdf", async (req, res) => {
             });
             xPos += columns.category;
             
-            // Product Name
-            doc.text(item.name || 'N/A', xPos + cellPadding, currentY, { 
-                width: columns.name - (cellPadding * 2),
-                height: rowHeight
-            });
+            // Product Name (with enhanced rendering)
+            renderMultilineName(
+                doc, 
+                item.name, 
+                xPos, 
+                currentY, 
+                columns.name, 
+                cellPadding, 
+                rowHeight
+            );
             xPos += columns.name;
             
             // Location
@@ -1279,7 +1300,7 @@ router.get("/report/low-stock/pdf", async (req, res) => {
             });
             xPos += columns.reorderPoint;
             
-            // Date (center-aligned)
+            // Date (center-aligned) - Now only showing date
             doc.text(formatDateTime(item.createdAt), xPos + cellPadding, currentY, { 
                 width: columns.date - (cellPadding * 2),
                 align: 'center',
@@ -1361,6 +1382,7 @@ router.get("/report/low-stock/pdf", async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
 
 router.get("/report/average-products/pdf", async (req, res) => {
     try {
