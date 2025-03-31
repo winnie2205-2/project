@@ -16,6 +16,7 @@ const { authenticate, isAdmin } = require("./middleware/authMiddleware");
 const itemsRoutes = require('./routes/itemsroute');
 const userRoutes = require('./routes/userRoute'); 
 const categoryRoutes = require('./routes/categoryroute'); 
+const profileroutes = require('./routes/profileroute'); 
 
 const User = require('./models/userModel'); // Import User Model
 const Item = require('./models/itemModel'); 
@@ -47,6 +48,7 @@ mongoose.connect(config.url)
 app.use('/api/users', userRoutes);
 app.use('/api/items', itemsRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/profile', profileroutes);
 
 // Static Files
 const staticDirectory = path.join(__dirname, '../my-app');

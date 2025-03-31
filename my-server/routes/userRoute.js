@@ -1,14 +1,46 @@
 const express = require('express');
 const User = require('../models/userModel');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+// const jwt = require('jsonwebtoken');
+// const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const { authenticate, isAdmin } = require('../middleware/authMiddleware');
-const mongoose = require('mongoose')
+// const mongoose = require('mongoose')
 const router = express.Router();
 const hashPassword = require('../hash');
 const comparePassword = require('../hash');
+const path = require('path'); 
+
+router.use('/assets/img', express.static(path.join(__dirname, '../my-app/assets/img')));
+
+router.get('/user-icon/:role', authenticate, (req, res) => {
+    const { role } = req.params;
+
+    // ตรวจสอบว่า role ที่ได้รับถูกต้องหรือไม่
+    if (!['admin', 'owner', 'employee'].includes(role.toLowerCase())) {
+        return res.status(400).json({ message: 'Invalid role' });
+    }
+
+    // กำหนดชื่อไฟล์ของ icon ตาม role
+    let iconFile;
+    switch (role.toLowerCase()) {
+        case 'admin':
+            iconFile = 'admin.png';
+            break;
+        case 'owner':
+            iconFile = 'owner.png';
+            break;
+        case 'employee':
+            iconFile = 'employee.png';
+            break;
+        default:
+            return res.status(400).json({ message: 'Role not found' });
+    }
+
+    // ส่ง URL ของไฟล์ icon กลับไปให้ frontend
+    const iconUrl = `/assets/img/${iconFile}`;
+    res.json({ iconUrl });
+});
 
 router.get('/users', authenticate, async (req, res) => {
     try {
@@ -211,9 +243,15 @@ router.get('/data_logs', authenticate, async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // เรียง logs จากใหม่ไปเก่า
-        const logs = user.activityLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        console.log('log:', logs)
+        // รวม username เข้าไปในแต่ละ log
+        const logs = user.activityLogs
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+            .map(log => ({
+                ...log.toObject(),  // เปลี่ยน activityLog ให้เป็น Object
+                username: user.username  // เพิ่ม username
+            }));
+
+        console.log('log:', logs);
         res.json(logs);
     } catch (error) {
         console.error('🚨 Error fetching logs:', error);
