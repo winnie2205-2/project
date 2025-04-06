@@ -6,7 +6,7 @@ window.onload = async function () {
         // Check if token exists
         if (!token) {
             alert("กรุณาล็อกอินก่อน");
-            window.location.href = '/index.html'; // Redirect to login page if no token
+            window.location.href = '/index.html';
             return;
         }
 
@@ -31,7 +31,7 @@ window.onload = async function () {
 
         if (!response.ok) {
             console.error('Error response:', response);
-            window.location.href = '/index.html'; // Redirect to login if there's an error from the API
+            window.location.href = '/index.html';
             return;
         }
 
@@ -47,6 +47,10 @@ window.onload = async function () {
         const userRole = data.role;
         console.log("User role:", userRole);
 
+        // Set role-based image
+        const roleLower = userRole.toLowerCase();
+        document.getElementById('userImage').src = `/assets/img/${roleLower}.png`;
+
         // Get all navigation items
         const overviewNav = document.getElementById("overviewNav");
         const inventoryNav = document.getElementById("inventoryNav");
@@ -58,33 +62,23 @@ window.onload = async function () {
         const settingNav = document.getElementById("settingNav");
 
         // Hide all nav items initially
-        overviewNav.style.display = 'none';
-        inventoryNav.style.display = 'none';
-        userManagementNav.style.display = 'none';
-        userLogNav.style.display = 'none';
-        reportNav.style.display = 'none';
-        replenishmentNav.style.display = 'none';
-        withdrawnNav.style.display = 'none';
-        settingNav.style.display = 'none';
+        const navItems = [
+            overviewNav, inventoryNav, userManagementNav, 
+            userLogNav, reportNav, replenishmentNav, 
+            withdrawnNav, settingNav
+        ];
+        navItems.forEach(item => item.style.display = 'none');
 
         // Show nav items based on role
         if (userRole === "Employee") {
-            overviewNav.style.display = 'block';
-            inventoryNav.style.display = 'block';
-            reportNav.style.display = 'block';
-            replenishmentNav.style.display = 'block';
-            withdrawnNav.style.display = 'block';
+            [overviewNav, inventoryNav, reportNav, replenishmentNav, withdrawnNav]
+                .forEach(item => item.style.display = 'block');
         } else if (userRole === "Owner") {
-            overviewNav.style.display = 'block';
-            inventoryNav.style.display = 'block';
-            userLogNav.style.display = 'block';
-            reportNav.style.display = 'block';
-            replenishmentNav.style.display = 'block';
-            withdrawnNav.style.display = 'block';
+            [overviewNav, inventoryNav, userLogNav, reportNav, replenishmentNav, withdrawnNav]
+                .forEach(item => item.style.display = 'block');
         } else if (userRole === "Admin") {
-            userManagementNav.style.display = 'block';
-            userLogNav.style.display = 'block';
-            settingNav.style.display = 'block';
+            [userManagementNav, userLogNav, settingNav]
+                .forEach(item => item.style.display = 'block');
         }
 
     } catch (error) {
@@ -93,7 +87,7 @@ window.onload = async function () {
     }
 };
 
-// Function to decode JWT token
+// Function to decode JWT token (keep this the same)
 function decodeJwt(token) {
     const base64Url = token.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');

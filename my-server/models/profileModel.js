@@ -18,12 +18,19 @@ const profileSchema = new mongoose.Schema({
       type: String,
       required: true,
     },
+    salesPhone: {
+      type: String,
+      required: true,  // Add required if needed
+    },
     email: {
       type: String,
       required: true,
     },
+    website: {
+      type: String,
+      required: true,  // Add required if needed
+    },
   },
 }, { timestamps: true });
 
-// ตรวจสอบว่าโมเดลถูกสร้างถูกต้อง
 module.exports = mongoose.model('Profile', profileSchema);

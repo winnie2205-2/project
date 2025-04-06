@@ -109,7 +109,7 @@
                         <div class="btn-group justify-content-end" role="group"></div>
                     </div>
                 </div>
-                <div id="content-box" style="padding: 10px;box-shadow: 0px 0px 10px;width: 1400px;background: #ffffff;margin: 200px;height: 675px;margin-left: 430px;margin-top: 5px;margin-bottom: 0px;border-radius: 10px;">
+                <div id="content-box" style="padding: 10px;box-shadow: 0px 0px 10px;width: 1400px;background: #ffffff;margin: 200px;height: 675px;margin-left: 450px;margin-top: 5px;margin-bottom: 0px;border-radius: 10px;">
                     <div class="table-responsive" style="width: 1370px;margin-left: 10px;margin-top: 5px;">
                         <table class="table">
                             <thead style="background: #d9d9d9;">
@@ -127,7 +127,7 @@
                         </table>
                     </div>
                 </div>                
-                <nav class="pagination-rounded d-flex justify-content-center mt-4" style="margin-left: 500px;">
+                <nav class="pagination-rounded d-flex justify-content-center mt-4" style="margin-left: 200px;">
                     <ul class="pagination">
                       <!-- Pagination buttons will be dynamically inserted here -->
                     </ul>
@@ -142,174 +142,189 @@
     <script src="assets/js/userlog.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-document.addEventListener("DOMContentLoaded", () => {
-    const tableBody = document.getElementById("logTableBody");
-    const paginationContainer = document.querySelector(".pagination");
-    
-    // Pagination settings
-    const logsPerPage = 14;
-    let currentPage = 1;
-    let allLogs = [];
-
-    if (!tableBody) {
-        console.error("🚨 Error: Table body (logTableBody) not found in HTML");
-        return;
-    }
-
-    async function fetchLogs() {
-        try {
-            tableBody.innerHTML = "<tr><td colspan='4' class='text-center'>Loading...</td></tr>";
-
-            const token = localStorage.getItem('token'); 
-
-            if (!token) {
-                console.error("🚨 No token found. Access denied.");
-                tableBody.innerHTML = "<tr><td colspan='4' class='text-center'>No token found. Please login.</td></tr>";
-                setTimeout(() => window.location.href = "/loading.html", 2000);
-                return;
-            }
-
-            const response = await fetch("http://localhost:5000/api/users/data_logs", {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                if (response.status === 403) {
-                    console.error("⛔ Unauthorized! Token expired or invalid.");
-                    localStorage.removeItem('token');
-                    alert("Session expired. Redirecting to login...");
-                    window.location.href = "/loading.html";
-                    return;
-                }
-                throw new Error(`HTTP Error! Status: ${response.status}`);
-            }
-
-            const logs = await response.json();
+        document.addEventListener("DOMContentLoaded", () => {
+            const tableBody = document.getElementById("logTableBody");
+            const paginationContainer = document.querySelector(".pagination");
+            const searchInput = document.getElementById("searchInput");
             
-            if (!Array.isArray(logs)) {
-                console.error("🚨 Error: API response is not an array", logs);
-                tableBody.innerHTML = "<tr><td colspan='4' class='text-center'>Invalid data received</td></tr>";
-                return;
+            // Configuration
+            const logsPerPage = 14;
+            let currentPage = 1;
+            let allLogs = [];
+            let filteredLogs = [];
+        
+            // Main functions
+            async function fetchLogs() {
+                try {
+                    const token = localStorage.getItem('token');
+                    if (!token) {
+                        window.location.href = "/loading.html";
+                        return;
+                    }
+        
+                    const response = await fetch("http://localhost:5000/api/users/data_logs", {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+        
+                    if (!response.ok) {
+                        if (response.status === 403) {
+                            localStorage.removeItem('token');
+                            window.location.href = "/loading.html";
+                        }
+                        throw new Error(`HTTP Error! Status: ${response.status}`);
+                    }
+        
+                    allLogs = await response.json();
+                    filteredLogs = [...allLogs];
+                    applySearch();
+                    setupPagination();
+                    
+                } catch (error) {
+                    console.error("Error fetching logs:", error);
+                    tableBody.innerHTML = `<tr><td colspan="4" class="text-center">Failed to load logs</td></tr>`;
+                }
             }
+        
+            function parseSearchInput(input) {
+    // Try to detect date formats
+    const dateFormats = [
+        /^\d{2}\/\d{2}\/\d{2}$/,    // DD/MM/YY
+        /^\d{2}\/\d{2}\/\d{4}$/,    // DD/MM/YYYY
+        /^\d{2}-\d{2}-\d{2}$/,       // DD-MM-YY
+        /^\d{2}-\d{2}-\d{4}$/        // DD-MM-YYYY
+    ];
 
-            console.log("Logs received:", logs); // Debug log to see the structure
-            allLogs = logs;
-            renderPage(currentPage);
-            setupPagination();
+    for (const format of dateFormats) {
+        if (format.test(input)) {
+            // Split date components
+            const separator = input.includes('/') ? '/' : '-';
+            const [day, month, year] = input.split(separator);
             
-        } catch (error) {
-            console.error("🚨 Error fetching logs:", error);
-            tableBody.innerHTML = "<tr><td colspan='4' class='text-center'>Failed to load logs</td></tr>";
+            // Create date object (months are 0-based in JS)
+            const parsedYear = year.length === 2 ? `20${year}` : year;
+            const date = new Date(`${parsedYear}-${month}-${day}`);
+            
+            if (!isNaN(date)) return { type: 'date', value: date };
         }
     }
     
-    function renderPage(page) {
-        tableBody.innerHTML = "";
+    return { type: 'text', value: input.toLowerCase() };
+}
         
-        // Calculate start and end items
-        const startIndex = (page - 1) * logsPerPage;
-        const endIndex = startIndex + logsPerPage;
-        const paginatedLogs = allLogs.slice(startIndex, endIndex);
+            function applySearch() {
+                const search = parseSearchInput(searchInput.value.trim());
+                filteredLogs = allLogs.filter(log => {
+                    // Get username from log data
+                    const username = (
+                        log.username || 
+                        (log.userID?.username || log.userID || "")
+                    ).toLowerCase();
+                    
+                    // Get action description
+                    const action = (log.action || "").toLowerCase();
+                    
+                    // Get log date
+                    const logDate = log.timestamp ? new Date(log.timestamp) : null;
         
-        if (paginatedLogs.length === 0) {
-            tableBody.innerHTML = "<tr><td colspan='4' class='text-center'>No logs available</td></tr>";
-            return;
-        }
+                    // Handle date search
+                    if (search.type === 'date' && logDate) {
+                        const searchDate = search.value;
+                        return logDate.toDateString() === searchDate.toDateString();
+                    }
         
-        paginatedLogs.forEach(log => {
-            const row = document.createElement("tr");
-            
-            // Extract username from log
-            // Replace the username extraction with:
-let username = log.username || log.userID || "Unknown";
-            
-            // Check if userID exists and has a username
-            if (log.userID && typeof log.userID === 'object' && log.userID.username) {
-                username = log.userID.username;
-            } 
-            // If userID is a string, show that as username
-            else if (log.userID && typeof log.userID === 'string') {
-                username = log.userID;
+                    // Handle text search
+                    if (search.type === 'text' && search.value) {
+                        return username.includes(search.value) || 
+                               action.includes(search.value);
+                    }
+        
+                    return true; // Show all when no search
+                });
+        
+                currentPage = 1;
+                renderTable();
             }
+        
+            function formatTime(date) {
+    if (!date) return "N/A";
+    
+    // Format date as DD/MM/YY
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+    const year = String(date.getFullYear()).slice(-2);
+    
+    // Format time with AM/PM
+    const hours = date.getHours() % 12 || 12; // Convert 0-23 to 12-hour format
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const ampm = date.getHours() >= 12 ? 'PM' : 'AM';
 
-            // Format the timestamp
-            const formattedDate = log.timestamp 
-                ? new Date(log.timestamp).toLocaleString("th-TH", { 
-                    day: "2-digit", month: "2-digit", year: "numeric",
-                    hour: "2-digit", minute: "2-digit", second: "2-digit"
-                }) 
-                : "N/A";
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds} ${ampm}`;
+}
+            function renderTable() {
+                tableBody.innerHTML = "";
+                const start = (currentPage - 1) * logsPerPage;
+                const end = start + logsPerPage;
                 
-            row.innerHTML = `
-                <td class="text-center">${username}</td>
-                <td class="text-center">${log.action || "N/A"}</td>
-                <td class="text-center">${formattedDate}</td>
-                <td class="text-center"></td>
-            `;
-            tableBody.appendChild(row);
-        });
-    }
-    
-    function setupPagination() {
-        paginationContainer.innerHTML = "";
-        const totalPages = Math.ceil(allLogs.length / logsPerPage);
+                filteredLogs.slice(start, end).forEach(log => {
+                    const row = document.createElement("tr");
+                    const username = log.username || log.userID?.username || log.userID || "Unknown";
+                    const timestamp = log.timestamp ? new Date(log.timestamp) : null;
         
-        // Previous button
-        const prevLi = document.createElement("li");
-        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
-        prevLi.innerHTML = `<a class="page-link" href="#" aria-label="Previous">
-            <span aria-hidden="true">&laquo;</span>
-        </a>`;
-        prevLi.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (currentPage > 1) {
-                currentPage--;
-                renderPage(currentPage);
+                    row.innerHTML = `
+                        <td class="text-center">${username}</td>
+                        <td class="text-center">${log.action || "N/A"}</td>
+                        <td class="text-center">${formatTime(timestamp)}</td>
+                        <td class="text-center"></td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            }
+        
+            function setupPagination() {
+                paginationContainer.innerHTML = "";
+                const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+        
+                // Previous Button
+                const prevLi = document.createElement("li");
+                prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+                prevLi.innerHTML = `<a class="page-link" href="#">&laquo;</a>`;
+                prevLi.onclick = () => currentPage > 1 && gotoPage(currentPage - 1);
+                paginationContainer.appendChild(prevLi);
+        
+                // Page Numbers
+                for (let i = 1; i <= totalPages; i++) {
+                    const li = document.createElement("li");
+                    li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                    li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                    li.onclick = () => gotoPage(i);
+                    paginationContainer.appendChild(li);
+                }
+        
+                // Next Button
+                const nextLi = document.createElement("li");
+                nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+                nextLi.innerHTML = `<a class="page-link" href="#">&raquo;</a>`;
+                nextLi.onclick = () => currentPage < totalPages && gotoPage(currentPage + 1);
+                paginationContainer.appendChild(nextLi);
+            }
+        
+            function gotoPage(page) {
+                currentPage = page;
+                renderTable();
                 setupPagination();
             }
-        });
-        paginationContainer.appendChild(prevLi);
         
-        // Page numbers
-        for (let i = 1; i <= totalPages; i++) {
-            const li = document.createElement("li");
-            li.className = `page-item ${i === currentPage ? 'active' : ''}`;
-            li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
-            li.addEventListener('click', (e) => {
-                e.preventDefault();
-                currentPage = i;
-                renderPage(currentPage);
+            // Event Listeners
+            searchInput.addEventListener("input", () => {
+                applySearch();
                 setupPagination();
             });
-            paginationContainer.appendChild(li);
-        }
         
-        // Next button
-        const nextLi = document.createElement("li");
-        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
-        nextLi.innerHTML = `<a class="page-link" href="#" aria-label="Next">
-            <span aria-hidden="true">&raquo;</span>
-        </a>`;
-        nextLi.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderPage(currentPage);
-                setupPagination();
-            }
+            // Initial Load
+            fetchLogs();
+            setInterval(fetchLogs, 60000); // Refresh every minute
         });
-        paginationContainer.appendChild(nextLi);
-    }
-
-    // Initial fetch
-    fetchLogs();
-    
-    // Refresh every minute
-    setInterval(fetchLogs, 60000);
-});
-    </script>      
-</body>
+            </script>
+        </body>
 </html>

@@ -33,21 +33,17 @@ function showadduser() {
               <div class="mb-3">
                 <label class="form-label" for="Password">Password*</label>
                 <div class="input-group">
-                  <input class="form-control" type="password" id="Password" placeholder="Password">
-                  <span class="input-group-text toggle-password" style="cursor: pointer;">
-                    <i class="bi bi-eye-slash"></i>
-                  </span>
+                  <input class="form-control" type="password" id="password">
+                  <i class="bi bi-eye-slash toggle-password position-absolute top-50 end-0 translate-middle-y me-3" style="cursor: pointer; z-index: 1000;"></i>
                 </div>
                 <small id="passwordError" class="form-text text-danger" style="display:none;">This field is required.</small>
               </div>
               <div class="mb-3">
                 <label class="form-label" for="Confirmpassword">Confirm password*</label>
                 <div class="input-group">
-                  <input class="form-control" type="password" id="Confirmpassword" placeholder="Confirm Password">
-                  <span class="input-group-text toggle-password" style="cursor: pointer;">
-                    <i class="bi bi-eye-slash"></i>
-                  </span>
-                </div>
+                    <input class="form-control" type="password" id="Confirmpassword" placeholder="Confirm Password">
+                    <i class="bi bi-eye-slash toggle-password position-absolute top-50 end-0 translate-middle-y me-3" style="cursor: pointer; z-index: 1000;"></i>
+                  </div>
                 <small id="confirmPasswordError" class="form-text text-danger" style="display:none;">Passwords do not match.</small>
               </div>
               <div class="d-flex justify-content-between flex-wrap mb-3">
@@ -65,15 +61,15 @@ function showadduser() {
                   </div>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label" for="selectRole">Role*</label>
-                  <select class="form-select" id="selectRole" style="width:200px;">
-                    <option value="" selected disabled>Select a role</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Owner">Owner</option>
-                    <option value="Employee">Employee</option>
-                  </select>
-                  <small id="roleError" class="form-text text-danger" style="display:none;">Please select a role.</small>
-                </div>
+                <label class="form-label" for="selectRole">Role*</label>
+                <select class="form-select" id="selectRole" style="width:200px;">
+                  <option value="" selected disabled>Select a role</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Owner">Owner</option>
+                  <option value="Employee">Employee</option>
+                </select>
+                <small id="roleError" class="form-text text-danger" style="display:none;">Please select a role.</small>
+              </div>
               </div>
               <div class="text-end mt-4">
                 <button id="closeButton" class="btn btn-secondary me-2" type="button" style="background: #ebe3ce;color: rgb(0,0,0);width: 100px;box-shadow: 0px 0px 2px 1px;padding: 7px 12px;border-radius: 50px;">Close</button>
@@ -92,20 +88,19 @@ function showadduser() {
       popup: 'my-popup-class'
     },
     didOpen: () => {
-      // Set up password visibility toggle
-      document.querySelectorAll('.toggle-password').forEach(button => {
-        button.addEventListener('click', function() {
+      document.querySelectorAll('.toggle-password').forEach(icon => {
+        icon.addEventListener('click', function() {
           const input = this.previousElementSibling;
-          const icon = this.querySelector('i');
           
+          // Toggle the icon classes
           if (input.type === 'password') {
             input.type = 'text';
-            icon.classList.remove('bi-eye-slash');
-            icon.classList.add('bi-eye');
+            this.classList.remove('bi-eye-slash');
+            this.classList.add('bi-eye');
           } else {
             input.type = 'password';
-            icon.classList.remove('bi-eye');
-            icon.classList.add('bi-eye-slash');
+            this.classList.remove('bi-eye');
+            this.classList.add('bi-eye-slash');
           }
         });
       });
@@ -539,21 +534,17 @@ function showEditUser(button) {
               </div>
               <div class="mb-3">
                 <label class="form-label" for="Password">New Password (optional)</label>
-                <div class="input-group">
-                  <input class="form-control" type="password" id="Password" placeholder="Leave blank if not changing">
-                  <span class="input-group-text toggle-password" style="cursor: pointer;">
-                    <i class="bi bi-eye-slash"></i>
-                  </span>
-                </div>
+               <div class="input-group">
+                    <input class="form-control" type="password" id="Password" placeholder="Leave blank if not changing">
+                    <i class="bi bi-eye-slash toggle-password position-absolute top-50 end-0 translate-middle-y me-3" style="cursor: pointer; z-index: 1000;"></i>
+                  </div>
                 <small id="passwordError" class="form-text text-danger" style="display:none;">This field is required.</small>
               </div>
               <div class="mb-3">
                 <label class="form-label" for="ConfirmPassword">Confirm Password</label>
                 <div class="input-group">
-                  <input class="form-control" type="password" id="ConfirmPassword">
-                  <span class="input-group-text toggle-password" style="cursor: pointer;">
-                    <i class="bi bi-eye-slash"></i>
-                  </span>
+                  <input class="form-control" type="password" id="Confirmpassword" placeholder="Confirm Password">
+                  <i class="bi bi-eye-slash toggle-password position-absolute top-50 end-0 translate-middle-y me-3" style="cursor: pointer; z-index: 1000;"></i>
                 </div>
                 <small id="confirmPasswordError" class="form-text text-danger" style="display:none;">Passwords do not match.</small>
               </div>
@@ -596,23 +587,23 @@ function showEditUser(button) {
     width: "600px",
     background: 'transparent',
     didOpen: () => {
-      // Set up password visibility toggle
-      document.querySelectorAll('.toggle-password').forEach(button => {
-        button.addEventListener('click', function() {
-          const input = this.previousElementSibling;
-          const icon = this.querySelector('i');
-          
-          if (input.type === 'password') {
-            input.type = 'text';
-            icon.classList.remove('bi-eye-slash');
-            icon.classList.add('bi-eye');
-          } else {
-            input.type = 'password';
-            icon.classList.remove('bi-eye');
-            icon.classList.add('bi-eye-slash');
-          }
+        // Already present in your didOpen() callback
+        document.querySelectorAll('.toggle-password').forEach(icon => {
+          icon.addEventListener('click', function() {
+            const input = this.previousElementSibling;
+            
+            // Toggle the icon classes
+            if (input.type === 'password') {
+              input.type = 'text';
+              this.classList.remove('bi-eye-slash');
+              this.classList.add('bi-eye');
+            } else {
+              input.type = 'password';
+              this.classList.remove('bi-eye');
+              this.classList.add('bi-eye-slash');
+            }
+          });
         });
-      });
 
       // Save button logic
       document.getElementById("saveButton").addEventListener("click", () => {

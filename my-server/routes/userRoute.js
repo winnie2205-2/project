@@ -98,6 +98,7 @@ router.post('/create', async (req, res) => {
         });
 
         await newUser.save();
+
         await newUser.addLog("create", { status });
 
         res.status(201).json({ message: "User created successfully" });
