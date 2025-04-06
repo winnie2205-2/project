@@ -64,8 +64,12 @@ userSchema.statics.authenticate = async function (email, password) {
 };
 
 // 📌 Method: เพิ่ม Log ของ User
-userSchema.methods.addLog = async function (action, details = {}) {
-    this.activityLogs.push({ action, details });
+userSchema.methods.addLog = async function(action, details = {}) {
+    this.activityLogs.push({
+        action,
+        details,
+        timestamp: new Date()
+    });
     await this.save();
 };
 

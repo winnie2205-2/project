@@ -99,7 +99,7 @@ router.post('/create', async (req, res) => {
 
         await newUser.save();
 
-        await newUser.addLog("create", { status });
+        await newUser.addLog("create", { status, createdBy: req.user.username });
 
         res.status(201).json({ message: "User created successfully" });
     } catch (error) {
@@ -186,25 +186,44 @@ router.put('/edit/:id', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
         const { username, email, password, status: userStatus, role: userRole } = req.body;
-        
+
         // ค้นหาผู้ใช้ตาม ID
         const user = await User.findById(id);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
-        
-        // อัปเดตข้อมูลที่ส่งมา (ถ้ามี)
-        if (username) user.username = username;
-        if (email) user.email = email;
-        if (userStatus) user.status = userStatus;
-        if (userRole) user.role = userRole;
+
+        // ตรวจสอบว่าแก้ไขฟิลด์อะไรบ้าง
+        const updatedFields = [];
+        if (username && username !== user.username) {
+            user.username = username;
+            updatedFields.push('username');
+        }
+        if (email && email !== user.email) {
+            user.email = email;
+            updatedFields.push('email');
+        }
+        if (userStatus && userStatus !== user.status) {
+            user.status = userStatus;
+            updatedFields.push('status');
+        }
+        if (userRole && userRole !== user.role) {
+            user.role = userRole;
+            updatedFields.push('role');
+        }
         if (password) {
             const hashedPassword = await bcrypt.hash(password, 10);
             user.password = hashedPassword;
+            updatedFields.push('password');
         }
-        
+
         // บันทึกการเปลี่ยนแปลง
         await user.save();
+
+       // เมื่อแก้ไข user
+       await user.addLog("edit", { username, email, status: userStatus, role: userRole, editedBy: req.user.username });
+
+
         res.json({ message: 'User updated successfully' });
     } catch (error) {
         console.error('🚨 Error updating user:', error);
@@ -212,19 +231,23 @@ router.put('/edit/:id', authenticate, async (req, res) => {
     }
 });
 
+
 router.delete('/delete/:id', authenticate, async (req, res) => {
-    console.log('deldel');
     try {
         const { id } = req.params;
         console.log("Deleting user ID:", id);
 
-        const user = await User.findByIdAndDelete(id);
-        console.log('user:',user)
+        const user = await User.findById(id);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // await user.addLog('delete', {});
+        // 👉 เก็บ log ก่อนลบ
+        await user.addLog("delete", { deletedBy: req.user.username });
+
+
+        // 👉 ลบผู้ใช้
+        await User.findByIdAndDelete(id);
 
         res.json({ message: 'User deleted successfully' });
     } catch (error) {

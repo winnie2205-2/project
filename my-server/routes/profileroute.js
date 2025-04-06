@@ -22,38 +22,34 @@ router.get('/profile', async (req, res) => {
   
 // 📌 API สำหรับอัปเดตข้อมูลโปรไฟล์
 router.put('/profile', async (req, res) => {
-    const { companyName, logoUrl, contactInfo } = req.body;
-  
-    // ตรวจสอบข้อมูลที่จำเป็น
-    if (!companyName || !logoUrl || !contactInfo || !contactInfo.address || !contactInfo.phone || !contactInfo.email) {
+  const { companyName, logoUrl, contactInfo } = req.body;
+
+  // ตรวจสอบข้อมูลที่จำเป็น
+  if (!companyName || !logoUrl || !contactInfo || !contactInfo.address || !contactInfo.phone || !contactInfo.email) {
       return res.status(400).json({ message: 'All fields are required' });
-    }
-  
-    try {
-      // ค้นหาโปรไฟล์ที่มีอยู่แล้ว (คาดว่าเป็น 1 เอนทรี)
+  }
+
+  try {
+      // ค้นหาโปรไฟล์ที่มีอยู่แล้ว
       let profile = await Profile.findOne();
-  
-      // ถ้าไม่มีโปรไฟล์ในฐานข้อมูล ให้สร้างใหม่
+
+      // ❌ ถ้าไม่เจอโปรไฟล์ ให้แจ้งว่าไม่มีข้อมูลให้แก้ไข
       if (!profile) {
-        profile = new Profile({
-          companyName,
-          logoUrl,
-          contactInfo,
-        });
-      } else {
-        // ถ้ามีโปรไฟล์แล้วให้แก้ไขข้อมูลที่ส่งมา
-        profile.companyName = companyName;
-        profile.logoUrl = logoUrl;
-        profile.contactInfo = contactInfo;
+          return res.status(404).json({ message: 'Profile not found. Cannot update non-existent profile.' });
       }
-  
-      // บันทึกข้อมูลลงฐานข้อมูล
+
+      // ✅ แก้ไขข้อมูล
+      profile.companyName = companyName;
+      profile.logoUrl = logoUrl;
+      profile.contactInfo = contactInfo;
+
       await profile.save();
       res.status(200).json({ message: 'Profile updated successfully', profile });
-    } catch (error) {
+
+  } catch (error) {
       console.error('🚨 Error updating profile:', error);
       res.status(500).json({ message: 'Server error' });
-    }
+  }
 });
 
 module.exports = router; // ส่งออก router

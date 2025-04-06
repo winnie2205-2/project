@@ -291,12 +291,21 @@ router.post("/create", async (req, res) => {
         });
 
         await newItem.save();
+
+        await newItem.addLog("create", {
+            name,
+            location,
+            qty,
+            price,
+            reorderPoint,
+            categoryName
+        });
+
         res.status(201).json({ message: "✅ สินค้าถูกเพิ่มแล้ว!", newItem });
     } catch (err) {
         res.status(400).json({ message: err.message });
     }
 });
-
 
 // ✅ แก้ไขข้อมูลสินค้า พร้อมการเปลี่ยนแปลง category (ถ้าจำเป็น)
 router.patch("/edit/:id", async (req, res) => {
@@ -357,6 +366,16 @@ router.patch("/edit/:id", async (req, res) => {
             return res.status(404).json({ message: "Item not found" });
         }
 
+        await updatedItem.addLog("edit", {
+            name,
+            location,
+            qty,
+            price: parsedPrice,
+            reorderPoint: parsedReorderPoint,
+            status,
+            categoryName
+        });
+
         // ส่งข้อมูลที่อัปเดตกลับไป
         res.status(200).json({ message: "✅ Update successful", updatedItem });
     } catch (err) {
@@ -373,6 +392,8 @@ router.delete("/:id", async (req, res) => {
         if (!deletedItem) {
             return res.status(404).json({ message: "Item not found" });
         }
+
+        await deletedItem.addLog("delete", { itemId: id, name: deletedItem.name });
 
         res.json({ message: "✅ Item deleted successfully" });
     } catch (err) {

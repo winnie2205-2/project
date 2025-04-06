@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load initial data
     async function loadProfile() {
         try {
-            const response = await fetch('/api/profile');
+            const response = await fetch('/api/profile/profile');
             const profile = await response.json();
             
             // Store original values
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         try {
-            const response = await fetch('/api/profile', {
+            const response = await fetch('/api/profile/profile', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
