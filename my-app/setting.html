@@ -14,11 +14,10 @@
 <body style="background: #B3C799;">
     <div class="container-fluid">
         <div class="row">
-            <!-- Sidebar content remains the same -->
             <div class="col-3 position-fixed top-0 bottom-0" style="background: #ebe3ce;width: 400px;">
                 <div class="text-center align-items-center mx-auto" style="height: auto;width: auto;margin: 40px;">
-                    <img id="companyLogo" class="img-fluid mb-3" src="assets/img/log%20sky.png" style="width: 150px;margin-top: 15px;">
-                    <p id="companyName" class="text-center" style="color: #28aa4a;font-size: 18px;font-weight: bold;">Sky Power Solution Co., Ltd.</p>
+                    <img id="companyLogo" class="img-fluid mb-3" style="width: 150px;margin-top: 15px;">
+                    <p id="companyName" class="text-center" style="color: #28aa4a;font-size: 18px;font-weight: bold;"></p>
                 </div>
                 <div class="d-flex flex-column">
                     <ul class="nav nav-tabs flex-column mb-3" style="margin-left: 30px;margin-top: 50px;">
@@ -111,7 +110,7 @@
                                     <div class="mb-3">
                                         <label class="form-label">Company Logo</label>
                                         <div class="d-flex align-items-center">
-                                            <img id="logoPreview" src="assets/img/log%20sky.png" alt="Company Logo" class="me-3" style="max-width: 100px; max-height: 100px;">
+                                            <img id="logoPreview" src="" alt="Company Logo" class="me-3" style="max-width: 100px; max-height: 100px;">
                                             <div>
                                                 <input type="file" class="form-control" id="logoUpload" accept="image/*">
                                                 <small class="text-muted">Recommended size: 150x150px</small>
@@ -156,7 +155,7 @@
                                     <div class="mb-3">
                                         <label for="locationSelect" class="form-label">Default Display Location</label>
                                         <select class="form-select" id="locationSelect" name="defaultLocation">
-                                            <option selected>Choose Location</option>
+                                            <option selected disabled>Choose Location</option>
                                             <option value="warehouse1">Nakhon Si Thammarat</option>
                                             <option value="warehouse2">Krabi</option>
                                             <option value="all">All Locations</option>
@@ -184,6 +183,14 @@
             <div class="toast-body">
                 Settings saved successfully!
             </div>
+        </div>
+        
+        <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-danger text-white">
+                <strong class="me-auto">Error</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body"></div>
         </div>
     </div>
 

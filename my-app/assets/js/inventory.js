@@ -56,8 +56,48 @@ async function fetchItems() {
             return b._id.localeCompare(a._id);
         });
         
-        allItems = items; // Store all items
-        filteredItems = items; // Initialize filteredItems with all items
+        // Filter items based on location preference from settings
+        const defaultLocation = localStorage.getItem('defaultLocation');
+        let filteredByLocation = items;
+        
+        if (defaultLocation && defaultLocation !== 'all') {
+            // Map warehouse values to location names
+            const locationMap = {
+                'warehouse1': 'Nakhon Si Thammarat',
+                'warehouse2': 'Krabi'
+            };
+            
+            const locationName = locationMap[defaultLocation];
+            
+            if (locationName) {
+                filteredByLocation = items.filter(item => item.location === locationName);
+                
+                // Add a location indicator to the page if it doesn't exist
+                if (!document.getElementById('locationIndicator')) {
+                    const tableHeader = document.querySelector('.table-responsive');
+                    if (tableHeader) {
+                        const indicator = document.createElement('div');
+                        indicator.id = 'locationIndicator';
+                        indicator.className = 'alert alert-info mb-3';
+                        indicator.innerHTML = `Showing items from location: <strong>${locationName}</strong>`;
+                        tableHeader.parentNode.insertBefore(indicator, tableHeader);
+                    }
+                } else {
+                    document.getElementById('locationIndicator').innerHTML = 
+                        `Showing items from location: <strong>${locationName}</strong>`;
+                    document.getElementById('locationIndicator').style.display = 'block';
+                }
+            }
+        } else {
+            // Hide the location indicator if showing all locations
+            const indicator = document.getElementById('locationIndicator');
+            if (indicator) {
+                indicator.style.display = 'none';
+            }
+        }
+        
+        allItems = filteredByLocation; // Store filtered items
+        filteredItems = filteredByLocation; // Initialize filteredItems with filtered items
 
         // Reset to first page when fetching items
         currentPage = 1;

@@ -41,7 +41,7 @@ function showadduser() {
               <div class="mb-3">
                 <label class="form-label" for="Confirmpassword">Confirm password*</label>
                 <div class="input-group">
-                    <input class="form-control" type="password" id="Confirmpassword" placeholder="Confirm Password">
+                      <input class="form-control" type="password" id="ConfirmPassword" placeholder="Confirm Password">
                     <i class="bi bi-eye-slash toggle-password position-absolute top-50 end-0 translate-middle-y me-3" style="cursor: pointer; z-index: 1000;"></i>
                   </div>
                 <small id="confirmPasswordError" class="form-text text-danger" style="display:none;">Passwords do not match.</small>
@@ -80,6 +80,7 @@ function showadduser() {
         </div>
       </div>
     </div>`,
+    
     showConfirmButton: false,
     showCancelButton: false,
     width: "600px",
@@ -121,8 +122,8 @@ function saveUser() {
   // Get form values
   const Username = document.getElementById("Username").value.trim();
   const Gmail = document.getElementById("Gmail").value.trim();
-  const Password = document.getElementById("Password").value;
-  const Confirmpassword = document.getElementById("Confirmpassword").value;
+  const Password = document.getElementById("password").value;  
+  const ConfirmPassword = document.getElementById("ConfirmPassword").value;  // Changed to "ConfirmPassword" (capital P)
   const status = document.querySelector('input[name="statusOptions"]:checked').value;
   const selectedRole = document.getElementById("selectRole").value;
 
@@ -149,20 +150,20 @@ function saveUser() {
   // Validate Password
   if (!Password) {
     document.getElementById("passwordError").style.display = "block";
-    document.getElementById("Password").closest('.input-group').previousElementSibling.classList.add("text-danger");
+    document.getElementById("password").closest('.input-group').previousElementSibling.classList.add("text-danger");
     isValid = false;
   }
 
   // Validate Confirm Password
-  if (!Confirmpassword) {
+  if (!ConfirmPassword) {
     document.getElementById("confirmPasswordError").textContent = "This field is required.";
     document.getElementById("confirmPasswordError").style.display = "block";
-    document.getElementById("Confirmpassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
+    document.getElementById("ConfirmPassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
     isValid = false;
-  } else if (Password !== Confirmpassword) {
+  } else if (Password !== ConfirmPassword) {
     document.getElementById("confirmPasswordError").textContent = "Passwords do not match.";
     document.getElementById("confirmPasswordError").style.display = "block";
-    document.getElementById("Confirmpassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
+    document.getElementById("ConfirmPassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
     isValid = false;
   }
 
@@ -180,17 +181,17 @@ function saveUser() {
 
   // Prepare data for API
   const newUser = {
-    Username: Username,
-    Gmail: Gmail,
-    Password: Password,
+    username: Username,
+    email: Gmail,
+    password: Password,
     status: status || 'Enable',
-    Role: selectedRole,
+    role: selectedRole,
   };
 
   console.log('Sending data to API:', newUser);
 
   // Send data to API
-  fetch('http://localhost:5000/api/users/create',  {
+  fetch('http://localhost:5000/api/users/create', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -221,7 +222,6 @@ function saveUser() {
     Swal.fire('Error saving user!', error.message, 'error');
   });
 }
-
 function validateEmail(email) {
   // Simple validation to check if the email ends with @gmail.com
   return email.toLowerCase().endsWith('@gmail.com');
@@ -232,6 +232,14 @@ function updateUser(userId) {
   // Reset all error messages and red labels
   document.querySelectorAll(".form-text.text-danger").forEach((el) => (el.style.display = "none"));
   document.querySelectorAll(".form-label").forEach((el) => el.classList.remove("text-danger"));
+
+  const userData = {
+    username: Username,
+    email: Gmail,
+    status: status,
+    role: selectedRole
+  };
+
 
   let isValid = true;
 
@@ -275,7 +283,9 @@ function updateUser(userId) {
       document.getElementById("confirmPasswordError").style.display = "block";
       document.getElementById("ConfirmPassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
       isValid = false;
+      return;
     }
+    userData.password = Password;
   }
 
   // Validate Role
@@ -543,7 +553,7 @@ function showEditUser(button) {
               <div class="mb-3">
                 <label class="form-label" for="ConfirmPassword">Confirm Password</label>
                 <div class="input-group">
-                  <input class="form-control" type="password" id="Confirmpassword" placeholder="Confirm Password">
+                  <input class="form-control" type="password" id="ConfirmPassword" placeholder="Confirm Password">
                   <i class="bi bi-eye-slash toggle-password position-absolute top-50 end-0 translate-middle-y me-3" style="cursor: pointer; z-index: 1000;"></i>
                 </div>
                 <small id="confirmPasswordError" class="form-text text-danger" style="display:none;">Passwords do not match.</small>
