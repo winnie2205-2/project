@@ -214,126 +214,126 @@ function validateEmail(email) {
 }
 
 // Function to update user
-function updateUser(userId) {
-  // Reset all error messages and red labels
-  document.querySelectorAll(".form-text.text-danger").forEach((el) => (el.style.display = "none"));
-  document.querySelectorAll(".form-label").forEach((el) => el.classList.remove("text-danger"));
+  function updateUser(userId) {
+    // Reset all error messages and red labels
+    document.querySelectorAll(".form-text.text-danger").forEach((el) => (el.style.display = "none"));
+    document.querySelectorAll(".form-label").forEach((el) => el.classList.remove("text-danger"));
 
-  const userData = {
-    username: Username,
-    email: Gmail,
-    status: status, // Ensure status is lowercase
-    role: selectedRole
-  };
+    let isValid = true;
 
-  let isValid = true;
+    // Get form values
+    const Username = document.getElementById("Username").value.trim();
+    const Gmail = document.getElementById("Gmail").value.trim();
+    const Password = document.getElementById("Password").value;
+    const ConfirmPassword = document.getElementById("ConfirmPassword").value;
+    const status = document.querySelector('input[name="statusOptions"]:checked').value.toLowerCase();
+    const selectedRole = document.getElementById("selectRole").value;
 
-  // Get form values
-  const Username = document.getElementById("Username").value.trim();
-  const Gmail = document.getElementById("Gmail").value.trim();
-  const Password = document.getElementById("Password").value;
-  const ConfirmPassword = document.getElementById("ConfirmPassword").value;
-  const status = document.querySelector('input[name="statusOptions"]:checked').value;
-  const selectedRole = document.getElementById("selectRole").value;
+    const userData = {
+      username: Username,
+      email: Gmail,
+      status: status, // Ensure status is lowercase
+      role: selectedRole
+    };
 
-  // Validate Username
-  if (!Username) {
-    document.getElementById("usernameError").style.display = "block";
-    document.getElementById("Username").previousElementSibling.classList.add("text-danger");
-    isValid = false;
-  }
-
-  // Validate Gmail
-  if (!Gmail) {
-    document.getElementById("gmailError").textContent = "This field is required.";
-    document.getElementById("gmailError").style.display = "block";
-    document.getElementById("Gmail").previousElementSibling.classList.add("text-danger");
-    isValid = false;
-  } else if (!validateEmail(Gmail)) {
-    document.getElementById("gmailError").textContent = "Please enter a valid Gmail address (@gmail.com).";
-    document.getElementById("gmailError").style.display = "block";
-    document.getElementById("Gmail").previousElementSibling.classList.add("text-danger");
-    isValid = false;
-  }
-
-  // Validate Password (optional for edit)
-  if (Password) {
-    if (!ConfirmPassword) {
-      document.getElementById("confirmPasswordError").textContent = "Please confirm your password.";
-      document.getElementById("confirmPasswordError").style.display = "block";
-      document.getElementById("ConfirmPassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
+    // Validate Username
+    if (!Username) {
+      document.getElementById("usernameError").style.display = "block";
+      document.getElementById("Username").previousElementSibling.classList.add("text-danger");
       isValid = false;
-    } else if (Password !== ConfirmPassword) {
-      document.getElementById("confirmPasswordError").textContent = "Passwords do not match.";
-      document.getElementById("confirmPasswordError").style.display = "block";
-      document.getElementById("ConfirmPassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
+    }
+
+    // Validate Gmail
+    if (!Gmail) {
+      document.getElementById("gmailError").textContent = "This field is required.";
+      document.getElementById("gmailError").style.display = "block";
+      document.getElementById("Gmail").previousElementSibling.classList.add("text-danger");
       isValid = false;
+    } else if (!validateEmail(Gmail)) {
+      document.getElementById("gmailError").textContent = "Please enter a valid Gmail address (@gmail.com).";
+      document.getElementById("gmailError").style.display = "block";
+      document.getElementById("Gmail").previousElementSibling.classList.add("text-danger");
+      isValid = false;
+    }
+
+    // Validate Password (optional for edit)
+    if (Password) {
+      if (!ConfirmPassword) {
+        document.getElementById("confirmPasswordError").textContent = "Please confirm your password.";
+        document.getElementById("confirmPasswordError").style.display = "block";
+        document.getElementById("ConfirmPassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
+        isValid = false;
+      } else if (Password !== ConfirmPassword) {
+        document.getElementById("confirmPasswordError").textContent = "Passwords do not match.";
+        document.getElementById("confirmPasswordError").style.display = "block";
+        document.getElementById("ConfirmPassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
+        isValid = false;
+        return;
+      }
+      userData.password = Password;
+    }
+
+    // Validate Role
+    if (!selectedRole) {
+      document.getElementById("roleError").style.display = "block";
+      document.getElementById("selectRole").previousElementSibling.classList.add("text-danger");
+      isValid = false;
+    }
+
+    // If any field is invalid, stop the process
+    if (!isValid) {
       return;
     }
-    userData.password = Password;
-  }
 
-  // Validate Role
-  if (!selectedRole) {
-    document.getElementById("roleError").style.display = "block";
-    document.getElementById("selectRole").previousElementSibling.classList.add("text-danger");
-    isValid = false;
-  }
+    // Prepare data for API
+    fetch(`http://localhost:5000/api/users/edit/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify(userData),
+    })
 
-  // If any field is invalid, stop the process
-  if (!isValid) {
-    return;
-  }
-
-  // Prepare data for API
-  fetch(`http://localhost:5000/api/users/edit/${userId}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem("token")}`,
-    },
-    body: JSON.stringify(userData),
-  })
-
-  // Only include password if it's provided
-  if (Password) {
-    userData.Password = Password;
-  }
-
-  console.log('Sending data to API:', userData);
-
-  // Send data to API
-  fetch("http://localhost:5000/api/users/users", {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem("token")}`,
-    },
-    body: JSON.stringify(userData),
-  })
-  .then(response => {
-    if (!response.ok) {
-      throw new Error(`Failed to update user: ${response.status}`);
+    // Only include password if it's provided
+    if (Password) {
+      userData.Password = Password;
     }
-    return response.json();
-  })
-  .then(data => {
-    console.log('Data received from API:', data);
-    Swal.fire({
-      title: 'Success!',
-      text: 'User has been updated successfully.',
-      icon: 'success',
-      confirmButtonText: 'OK'
-    }).then(() => {
-      Swal.close();
-      fetchUsers(); // Refresh the user list
+
+    console.log('Sending data to API:', userData);
+
+    // Send data to API
+    fetch(`http://localhost:5000/api/users/edit/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify(userData),
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`Failed to update user: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Data received from API:', data);
+      Swal.fire({
+        title: 'Success!',
+        text: 'User has been updated successfully.',
+        icon: 'success',
+        confirmButtonText: 'OK'
+      }).then(() => {
+        Swal.close();
+        fetchUsers(); // Refresh the user list
+      });
+    })
+    .catch((error) => {
+      console.error('Error saving user:', error);
+      Swal.fire('Error saving user!', '', 'error');
     });
-  })
-  .catch((error) => {
-    console.error('Error saving user:', error);
-    Swal.fire('Error saving user!', '', 'error');
-  });
-}
+  }
 
 let currentPage = 1; // Track the current page
 const usersPerPage = 10; // Number of users to display per page

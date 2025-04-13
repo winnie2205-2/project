@@ -109,11 +109,18 @@ router.post('/create', authMiddleware, isAdmin, async (req, res) => {
             if (currentUser && currentUser.addLog) {
                 console.log(`📝 Logging to user: ${currentUser.username}`);
 
-                await currentUser.addLog("Create User", {
+                // เพิ่มการเก็บ log ว่ามีการสร้างผู้ใช้ใหม่พร้อมรายละเอียดฟิลด์ที่เพิ่มเข้าไป
+                const logDetails = {
                     createdUser: username,
+                    username: newUser.username,
+                    email: newUser.email,
+                    status: newUser.status,
+                    role: newUser.role,
                     ip: req.ip,
-                    device: req.headers['user-agent']
-                });
+                    device: req.headers['user-agent'],
+                };
+
+                await currentUser.addLog("Create User", logDetails);
 
                 console.log("✅ Log added to currentUser");
             } else {
@@ -206,54 +213,88 @@ router.get('/role_check', authenticate, async (req, res) => {
 });
 
 // 📌 Edit User
-router.put('/edit/:id', authenticate, async (req, res) => {
+router.put('/edit/:id', authMiddleware, isAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         const { username, email, password, status: userStatus, role: userRole } = req.body;
 
+        // ค้นหาผู้ใช้งานในฐานข้อมูลตาม id
         const user = await User.findById(id);
         if (!user) {
+            console.log("❌ User not found:", id);
             return res.status(404).json({ error: 'User not found' });
         }
 
         const updatedFields = [];
+        const changes = [];
+
+        // ตรวจสอบว่าแต่ละฟิลด์ที่มีการเปลี่ยนแปลงหรือไม่
         if (username && username !== user.username) {
             user.username = username;
             updatedFields.push('username');
+            changes.push({ field: 'username', oldValue: user.username, newValue: username });
         }
         if (email && email !== user.email) {
             user.email = email;
             updatedFields.push('email');
+            changes.push({ field: 'email', oldValue: user.email, newValue: email });
         }
         if (userStatus && userStatus !== user.status) {
             user.status = userStatus;
             updatedFields.push('status');
+            changes.push({ field: 'status', oldValue: user.status, newValue: userStatus });
         }
         if (userRole && userRole !== user.role) {
             user.role = userRole;
             updatedFields.push('role');
+            changes.push({ field: 'role', oldValue: user.role, newValue: userRole });
         }
         if (password) {
             const hashedPassword = await bcrypt.hash(password, 10);
             user.password = hashedPassword;
             updatedFields.push('password');
+            changes.push({ field: 'password', oldValue: '[hidden]', newValue: '[hidden]' }); // รหัสผ่านไม่แสดงใน log
         }
 
+        // บันทึกข้อมูลผู้ใช้ที่แก้ไขแล้ว
         await user.save();
+        console.log("✅ User updated:", user.username);
+        console.log("🛠 Updated fields:", updatedFields);
 
-        // 🔍 ผู้ที่ทำการแก้ไข
-        const currentUser = await User.findOne({ username: req.user.username });
-        if (currentUser && currentUser.addLog) {
-            await currentUser.addLog("Edit User", {
-                editedUser: user.username,
-                updatedFields,
-                ip: req.ip,
-                device: req.headers['user-agent']
-            });
-
-            console.log(`📝 Log added for ${currentUser.username} editing ${user.username}`);
+        // 🔍 Logging by the editor
+        if (!req.user || !req.user.username) {
+            console.log("⚠️ req.user or req.user.username is missing");
         } else {
-            console.log("⚠️ Cannot find current user or addLog missing");
+            console.log("👤 Request made by:", req.user.username);
+
+            // ค้นหาผู้ใช้งานที่ทำการแก้ไขในระบบ
+            const currentUser = await User.findOne({ username: req.user.username });
+
+            if (!currentUser) {
+                console.log("⚠️ Current user not found in DB");
+            } else {
+                console.log("✅ Current user found:", currentUser.username);
+
+                if (typeof currentUser.addLog !== 'function') {
+                    console.log("⚠️ currentUser.addLog is not a function");
+                } else {
+                    try {
+                        // เพิ่มการบันทึก log ที่ระบุข้อมูลที่ถูกแก้ไข รวมทั้งค่าของฟิลด์ที่ถูกแก้ไข
+                        await currentUser.addLog("Edit User", {
+                            editedUser: user.username,
+                            updatedFields: updatedFields.join(", "), // ฟิลด์ที่ถูกแก้ไข
+                            changes: changes, // ข้อมูลที่ถูกแก้ไข (เก่ากับใหม่)
+                            ip: req.ip, // บันทึก IP ของผู้ใช้
+                            device: req.headers['user-agent'], // บันทึกข้อมูล device ที่ใช้
+                            timestamp: new Date() // เพิ่มเวลาในการทำการบันทึก log
+                        });
+
+                        console.log("✅ Log successfully added for:", currentUser.username);
+                    } catch (logError) {
+                        console.error("🚨 Error calling addLog:", logError);
+                    }
+                }
+            }
         }
 
         res.json({ message: 'User updated successfully' });
@@ -277,20 +318,28 @@ router.delete('/delete/:id', authenticate, async (req, res) => {
         // 👉 หาผู้ใช้งานที่ทำการลบ (จาก token)
         const currentUser = await User.findOne({ username: req.user.username });
 
+        // ถ้ามี currentUser และสามารถใช้ addLog ได้
         if (currentUser && currentUser.addLog) {
-            await currentUser.addLog("Delete User", {
+            const logDetails = {
                 deletedUser: userToDelete.username,
                 ip: req.ip,
-                device: req.headers['user-agent']
-            });
+                device: req.headers['user-agent'],
+                timestamp: new Date() // เก็บเวลาที่ทำการลบ
+            };
+
+            // เพิ่ม log เกี่ยวกับการลบผู้ใช้
+            await currentUser.addLog("Delete User", logDetails);
 
             console.log(`📝 Log added to ${currentUser.username} for deleting user ${userToDelete.username}`);
         } else {
-            console.log("⚠️ Cannot find current user or addLog missing");
+            console.log("⚠️ Cannot find current user or addLog method is missing");
         }
 
         // 👉 ลบผู้ใช้
         await User.findByIdAndDelete(id);
+        console.log("🗑️ User deleted:", userToDelete.username);
+
+        // ส่ง response แจ้งว่าได้ลบข้อมูลแล้ว
         res.json({ message: 'User deleted successfully' });
 
     } catch (error) {
@@ -301,7 +350,7 @@ router.delete('/delete/:id', authenticate, async (req, res) => {
 
 router.get('/data_logs', authenticate, async (req, res) => {
     try {
-        // ดึงข้อมูลทุกผู้ใช้
+        // ดึงข้อมูลทุกผู้ใช้พร้อมกับ activityLogs
         const users = await User.find().populate("activityLogs");
 
         if (!users || users.length === 0) {
@@ -312,7 +361,16 @@ router.get('/data_logs', authenticate, async (req, res) => {
         const allLogs = users.flatMap(user => 
             user.activityLogs.map(log => ({
                 ...log.toObject(),  // เปลี่ยน activityLog ให้เป็น Object
-                username: user.username  // เพิ่ม username
+                username: user.username,  // เพิ่ม username
+                // เพิ่มรายละเอียดเกี่ยวกับการสร้างผู้ใช้ใหม่
+                createdUser: log.createdUser,
+                usernameField: log.username,
+                email: log.email,
+                status: log.status,
+                role: log.role,
+                ip: log.ip,
+                device: log.device,
+                timestamp: log.timestamp
             }))
         );
 
@@ -320,12 +378,11 @@ router.get('/data_logs', authenticate, async (req, res) => {
         const sortedLogs = allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         console.log('All Logs:', sortedLogs);  // แสดงผล log ที่ได้
-        res.json(sortedLogs);
+        res.json(sortedLogs);  // ส่งข้อมูล logs ที่ได้ไปยัง frontend
     } catch (error) {
         console.error('🚨 Error fetching logs:', error);
         res.status(500).json({ error: 'Server error', details: error.message });
     }
 });
-
 
 module.exports = router;

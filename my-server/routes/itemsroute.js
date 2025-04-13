@@ -325,7 +325,9 @@ router.post("/create", authenticate, async (req, res) => {
                     createdBy: req.user.username,
                     role: currentUser.role,
                     ip: req.ip,
-                    device: req.headers['user-agent']
+                    device: req.headers['user-agent'],
+                    // เพิ่มรายละเอียดการสร้างสินค้า
+                    logDetails: `name: ${name}, qty: ${qty}, price: ${price}, location: ${location}`
                 });
                 console.log(`📝 Log added for ${currentUser.username} creating item ${name}`);
             } catch (logError) {
@@ -384,10 +386,18 @@ router.patch("/edit/:id", authenticate, async (req, res) => {
             updates.categoryID = categoryID;
         }
 
+        // หาข้อมูลสินค้าเก่าก่อนการอัปเดต
+        const previousItem = await Item.findById(id);
+
+        if (!previousItem) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+
+        // อัปเดตข้อมูลสินค้า
         const updatedItem = await Item.findByIdAndUpdate(id, updates, { new: true }).populate("categoryID", "categoryName");
 
         if (!updatedItem) {
-            return res.status(404).json({ message: "Item not found" });
+            return res.status(404).json({ message: "Item not found after update" });
         }
 
         // ค้นหาผู้ใช้ที่ทำการแก้ไขข้อมูล
@@ -400,7 +410,29 @@ router.patch("/edit/:id", authenticate, async (req, res) => {
                 editedBy: req.user.username,
                 role: currentUser.role,
                 ip: req.ip,  // IP ของผู้ใช้
-                device: req.headers['user-agent']  // ข้อมูลของอุปกรณ์
+                device: req.headers['user-agent'],  // ข้อมูลของอุปกรณ์
+                changes: {
+                    // เก็บข้อมูลก่อนการแก้ไข
+                    oldData: {
+                        name: previousItem.name,
+                        location: previousItem.location,
+                        qty: previousItem.qty,
+                        price: previousItem.price,
+                        reorderPoint: previousItem.reorderPoint,
+                        status: previousItem.status,
+                        categoryName: previousItem.categoryID ? previousItem.categoryID.categoryName : "N/A"
+                    },
+                    // เก็บข้อมูลหลังการแก้ไข
+                    newData: {
+                        name: updatedItem.name,
+                        location: updatedItem.location,
+                        qty: updatedItem.qty,
+                        price: updatedItem.price,
+                        reorderPoint: updatedItem.reorderPoint,
+                        status: updatedItem.status,
+                        categoryName: updatedItem.categoryID.categoryName
+                    }
+                }
             });
 
             console.log(`📝 Log added for ${currentUser.username} editing item ${updatedItem.name}`);
@@ -414,7 +446,6 @@ router.patch("/edit/:id", authenticate, async (req, res) => {
         res.status(500).json({ message: "Internal server error", error: err.message });
     }
 });
-
 
 // ✅ ลบสินค้า
 router.delete("/:id", authenticate, async (req, res) => {
@@ -436,7 +467,17 @@ router.delete("/:id", authenticate, async (req, res) => {
                 deletedBy: req.user.username,
                 role: currentUser.role,
                 ip: req.ip,
-                device: req.headers['user-agent']
+                device: req.headers['user-agent'],
+                deletedData: {
+                    // ข้อมูลของสินค้าที่ถูกลบ
+                    name: deletedItem.name,
+                    location: deletedItem.location,
+                    qty: deletedItem.qty,
+                    price: deletedItem.price,
+                    reorderPoint: deletedItem.reorderPoint,
+                    status: deletedItem.status,
+                    categoryName: deletedItem.categoryID ? deletedItem.categoryID.categoryName : "N/A"
+                }
             });
 
             console.log(`📝 Log added for ${currentUser.username} deleting item ${deletedItem.name}`);
@@ -569,6 +610,9 @@ router.post('/withdraw', authenticate, async (req, res) => {
                 itemId: item._id,
                 itemName: item.name,
                 withdrawnBy: currentUser.username,
+                qtyWithdrawn: qty,  // จำนวนสินค้าที่เบิก
+                remainingQty: item.qty,  // จำนวนสินค้าหลังการเบิก
+                categoryName: item.categoryID ? item.categoryID.name : "N/A",
                 role: user.role,
                 ip: req.ip,
                 device: req.headers['user-agent']
@@ -594,8 +638,6 @@ router.post('/withdraw', authenticate, async (req, res) => {
         res.status(500).json({ message: 'Server error during withdrawal' });
     }
 });
-
-
 
 // Add product in the selection box
 router.post('/api/items/add', async (req, res) => {
@@ -1998,7 +2040,7 @@ router.post("/import", async (req, res) => {
   }
 });
 
-router.post("/restock", async (req, res) => {
+router.post("/restock", authenticate, async (req, res) => {
     try {
         const { categoryID, name, price, qty, location } = req.body;
 
@@ -2006,48 +2048,52 @@ router.post("/restock", async (req, res) => {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
-        // ค้นหาสินค้าในฐานข้อมูล
         let existingItem = await Item.findOne({ categoryID, name, location });
 
-        // ตรวจสอบว่ามีสินค้าตัวนี้อยู่ในระบบหรือไม่
+        const logData = {
+            action: "restock",
+            qty,
+            purchasePrice: price,
+            date: new Date(),
+            status: "restocked",
+            user: req.user.username,
+            role: req.user.role,
+            ip: req.ip,
+            device: req.headers['user-agent']
+        };
+
         if (existingItem) {
-            // ถ้าพบสินค้าเดิม → อัปเดตจำนวนสินค้า (เพิ่ม `qty`)
             existingItem.qty += qty;
-            existingItem.activityLogs.push({
-                action: "restock",
-                qty,
-                purchasePrice: price,
-                date: new Date(),
-                status: "restocked", // เพิ่มสถานะ
-                user: req.user.username,  // ผู้ที่ทำการ restock
-                role: req.user.role, // บทบาทของผู้ใช้
-                ip: req.ip, // IP ของผู้ใช้
-                device: req.headers['user-agent'] // ข้อมูลของอุปกรณ์
-            });
+            existingItem.activityLogs.push(logData);
             await existingItem.save();
         } else {
-            // ถ้าไม่มีสินค้าเดิม → เพิ่มสินค้าตัวใหม่
             existingItem = new Item({
                 categoryID,
                 name,
                 price,
                 qty,
                 location,
-                activityLogs: [
-                    {
-                        action: "restock",
-                        qty,
-                        purchasePrice: price,
-                        date: new Date(),
-                        status: "restocked", // เพิ่มสถานะ
-                        user: req.user.username,  // ผู้ที่ทำการ restock
-                        role: req.user.role, // บทบาทของผู้ใช้
-                        ip: req.ip, // IP ของผู้ใช้
-                        device: req.headers['user-agent'] // ข้อมูลของอุปกรณ์
-                    }
-                ]
+                activityLogs: [logData]
             });
             await existingItem.save();
+        }
+
+        // 🟩 เพิ่มบันทึก log ให้ user
+        const user = await User.findOne({ username: req.user.username });
+
+        if (user) {
+            await user.addLog("Restock Item", {
+                itemId: existingItem._id,
+                itemName: existingItem.name,
+                restockedQty: qty,
+                role: user.role,
+                ip: req.ip,
+                device: req.headers['user-agent']
+            });
+
+            console.log(`📝 Log added for ${req.user.username} restocking ${existingItem.name} (${qty} units)`);
+        } else {
+            console.log("⚠️ Cannot find current user to log activity.");
         }
 
         res.json({ message: "Restocked successfully", item: existingItem });
