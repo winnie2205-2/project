@@ -8,7 +8,8 @@ const iconv = require('iconv-lite');
 const path = require('path');
 const fs = require("fs");
 const thaiFontPath = path.join(__dirname, '../../my-app/assets/fonts/THSarabunNew.ttf');
-
+const { authenticate } = require('../middleware/authMiddleware'); 
+const User = require('../models/userModel');
 
 if (!fs.existsSync(thaiFontPath)) {
     console.error(`🚨 ไม่พบฟอนต์ที่: ${thaiFontPath}`);
@@ -266,20 +267,30 @@ router.get("/:id", async (req, res) => {
 });
 
 // itemsroute.js
-router.post("/create", async (req, res) => {
+router.post("/create", authenticate, async (req, res) => {
     try {
         const { name, location, qty, price, reorderPoint, categoryName } = req.body;
 
-        if (!name || !location || qty == null || !price || !reorderPoint || !categoryName) {
+        console.log('Received data:', req.body); // ตรวจสอบข้อมูลที่รับมา
+
+        // ตรวจสอบข้อมูลที่จำเป็น
+        if (!name || !location || qty === undefined || qty === null || !price || reorderPoint === undefined || reorderPoint === null || !categoryName) {
+            console.log('Missing data:', { name, location, qty, price, reorderPoint, categoryName });
             return res.status(400).json({ message: "❌ ข้อมูลไม่ครบ กรุณาตรวจสอบ JSON ที่ส่งมา" });
         }
 
-        // ✅ แก้ไขตรงนี้: ใช้ categoryName จาก req.body แทน
-        let category = await Category.findOne({ categoryName });
-        if (!category) {
-            category = new Category({ categoryName });
-            await category.save();
+        if (typeof qty !== 'number' || typeof price !== 'number' || typeof reorderPoint !== 'number') {
+            console.log('Invalid data types:', { qty, price, reorderPoint });
+            return res.status(400).json({ message: "❌ ข้อมูลไม่ถูกต้อง: qty, price และ reorderPoint ต้องเป็นตัวเลข" });
         }
+
+        // ใช้ findOneAndUpdate เพื่อทำให้การค้นหาและการสร้าง category เป็นขั้นตอนเดียว
+        let category = await Category.findOneAndUpdate(
+            { categoryName }, // ค้นหาจาก categoryName
+            { categoryName }, // ถ้าไม่เจอจะสร้างใหม่
+            { new: true, upsert: true } // ถ้าไม่เจอจะสร้างใหม่
+        );
+        console.log('Category found or created:', category); // ตรวจสอบ category ที่ได้
 
         const newItem = new Item({
             name,
@@ -287,96 +298,116 @@ router.post("/create", async (req, res) => {
             qty,
             price,
             reorderPoint,
-            categoryID: category._id
+            categoryID: category._id,
+            createdBy: req.user.username  // เพิ่มผู้สร้างใน newItem
         });
 
+        console.log('New item object:', newItem); // ตรวจสอบข้อมูลของสินค้าใหม่
+
+        // บันทึกสินค้าใหม่
         await newItem.save();
+        console.log('Item saved successfully:', newItem); // ตรวจสอบเมื่อสินค้าเพิ่มแล้ว
 
-        await newItem.addLog("create", {
-            name,
-            location,
-            qty,
-            price,
-            reorderPoint,
-            categoryName
+        // ค้นหาผู้ใช้ที่เพิ่มสินค้า
+        const currentUser = await User.findOne({ username: req.user.username });
+        console.log('Current user:', currentUser); // ตรวจสอบข้อมูลผู้ใช้
+
+        if (currentUser) {
+            // บันทึก Log ใน User
+            try {
+                await currentUser.addLog("Create Item", {
+                    itemName: name,
+                    itemLocation: location,
+                    itemQty: qty,
+                    itemPrice: price,
+                    itemReorderPoint: reorderPoint,
+                    categoryName,
+                    createdBy: req.user.username,
+                    role: currentUser.role,
+                    ip: req.ip,
+                    device: req.headers['user-agent']
+                });
+                console.log(`📝 Log added for ${currentUser.username} creating item ${name}`);
+            } catch (logError) {
+                console.log("⚠️ Error while logging activity:", logError);
+            }
+        } else {
+            console.log("⚠️ Cannot find current user to log activity.");
+        }
+
+        // ส่งข้อมูลกลับพร้อมข้อมูลสินค้าที่เพิ่ม
+        res.status(201).json({ 
+            message: "✅ สินค้าถูกเพิ่มแล้ว!", 
+            newItem: { id: newItem._id, name: newItem.name, price: newItem.price, location: newItem.location, qty: newItem.qty, reorderPoint: newItem.reorderPoint }
         });
 
-        res.status(201).json({ message: "✅ สินค้าถูกเพิ่มแล้ว!", newItem });
     } catch (err) {
-        res.status(400).json({ message: err.message });
+        console.log('Error during item creation:', err); // ตรวจสอบข้อผิดพลาดที่เกิดขึ้น
+        res.status(400).json({ message: "❌ เกิดข้อผิดพลาด: " + err.message });
     }
 });
 
 // ✅ แก้ไขข้อมูลสินค้า พร้อมการเปลี่ยนแปลง category (ถ้าจำเป็น)
-router.patch("/edit/:id", async (req, res) => {
+router.patch("/edit/:id", authenticate, async (req, res) => {
     try {
-        const { name, location, qty, price, reorderPoint, status, categoryName } = req.body;
+        const { name, location, qty, price, reorderPoint, status, categoryName } = req.body; // ดึงข้อมูลจาก body
         const { id } = req.params;  // ใช้ id จาก URL parameter
 
         let categoryID;
 
-        // ตรวจสอบว่ามีการส่ง categoryName มาหรือไม่
         if (categoryName) {
-            // ค้นหาหมวดหมู่ตาม categoryName
             let category = await Category.findOne({ categoryName });
-
-            // ถ้าไม่พบหมวดหมู่ในฐานข้อมูล ให้สร้างใหม่
             if (!category) {
                 category = new Category({ categoryName });
                 await category.save();  // บันทึกหมวดหมู่ใหม่
             }
-
-            // ใช้ _id ของ category
             categoryID = category._id;
         }
 
-        // ตรวจสอบและแปลงค่า price เป็นทศนิยม
-        const parsedPrice = parseFloat(price); // แปลงเป็นทศนิยม
+        const parsedPrice = parseFloat(price);
         if (isNaN(parsedPrice) || parsedPrice <= 0) {
             return res.status(400).json({ message: "Invalid price" });
         }
 
-        // ตรวจสอบ reorderPoint ว่ามีค่าเป็น null หรือไม่
-        let parsedReorderPoint;
-        if (reorderPoint === "null" || reorderPoint === null || reorderPoint === undefined) {
-            parsedReorderPoint = 0;  // กำหนดให้เป็น 0 ถ้าเป็น null หรือ undefined
-        } else {
-            parsedReorderPoint = reorderPoint;  // ใช้ค่า reorderPoint ที่ส่งมาถ้ามี
-        }
+        let parsedReorderPoint = reorderPoint === "null" || reorderPoint === null || reorderPoint === undefined ? 0 : reorderPoint;
 
-        // สร้างข้อมูลที่จะอัปเดต
         const updates = {
             name,
             location,
             qty,
-            price: parsedPrice,   // ใช้ค่า parsedPrice แทน
-            reorderPoint: parsedReorderPoint,  // ใช้ค่า parsedReorderPoint แทน
+            price: parsedPrice,
+            reorderPoint: parsedReorderPoint,
             status
         };
 
-        // ถ้ามี categoryID ให้เพิ่มเข้าไป
         if (categoryID) {
-            updates.categoryID = categoryID;  // เพิ่ม categoryID ในข้อมูลที่จะอัปเดต
+            updates.categoryID = categoryID;
         }
 
-        // ค้นหาและอัปเดตข้อมูลในฐานข้อมูล
         const updatedItem = await Item.findByIdAndUpdate(id, updates, { new: true }).populate("categoryID", "categoryName");
 
         if (!updatedItem) {
             return res.status(404).json({ message: "Item not found" });
         }
 
-        await updatedItem.addLog("edit", {
-            name,
-            location,
-            qty,
-            price: parsedPrice,
-            reorderPoint: parsedReorderPoint,
-            status,
-            categoryName
-        });
+        // ค้นหาผู้ใช้ที่ทำการแก้ไขข้อมูล
+        const currentUser = await User.findOne({ username: req.user.username });  // ใช้ `req.user.username`
+        if (currentUser) {
+            // บันทึก log การแก้ไขข้อมูลสินค้า
+            await currentUser.addLog("edit", {
+                itemId: id,
+                itemName: updatedItem.name,
+                editedBy: req.user.username,
+                role: currentUser.role,
+                ip: req.ip,  // IP ของผู้ใช้
+                device: req.headers['user-agent']  // ข้อมูลของอุปกรณ์
+            });
 
-        // ส่งข้อมูลที่อัปเดตกลับไป
+            console.log(`📝 Log added for ${currentUser.username} editing item ${updatedItem.name}`);
+        } else {
+            console.log("⚠️ Cannot find current user to log activity.");
+        }
+
         res.status(200).json({ message: "✅ Update successful", updatedItem });
     } catch (err) {
         console.error("Error:", err);
@@ -384,8 +415,9 @@ router.patch("/edit/:id", async (req, res) => {
     }
 });
 
+
 // ✅ ลบสินค้า
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authenticate, async (req, res) => {
     try {
         const deletedItem = await Item.findByIdAndDelete(req.params.id);
 
@@ -393,10 +425,29 @@ router.delete("/:id", async (req, res) => {
             return res.status(404).json({ message: "Item not found" });
         }
 
-        await deletedItem.addLog("delete", { itemId: id, name: deletedItem.name });
+        // ค้นหาผู้ใช้ที่ทำการลบสินค้า
+        const currentUser = await User.findOne({ username: req.user.username });
+
+        if (currentUser) {
+            // บันทึก log การลบสินค้าลงในผู้ใช้
+            await currentUser.addLog("Delete Item", {
+                itemId: deletedItem._id,
+                itemName: deletedItem.name,
+                deletedBy: req.user.username,
+                role: currentUser.role,
+                ip: req.ip,
+                device: req.headers['user-agent']
+            });
+
+            console.log(`📝 Log added for ${currentUser.username} deleting item ${deletedItem.name}`);
+        } else {
+            console.log("⚠️ Cannot find current user to log activity.");
+        }
 
         res.json({ message: "✅ Item deleted successfully" });
+
     } catch (err) {
+        console.log('Error during item deletion:', err);
         res.status(500).json({ message: "Error deleting item", error: err.message });
     }
 });
@@ -455,17 +506,28 @@ router.get("/report/low-stock", async (req, res) => {
     }
 });
 
-router.post('/withdraw', async (req, res) => {
-    const { itemId, qty, user } = req.body;
+router.post('/withdraw', authenticate, async (req, res) => {
+    const { itemId, qty } = req.body;
+    const currentUser = req.user;  // ใช้ข้อมูลจาก token ที่ยืนยันตัวตนแล้ว
 
-    console.log(req.body); // เพิ่มบรรทัดนี้เพื่อดูข้อมูลที่ได้รับจาก client
-
-    // ตรวจสอบว่า itemId, qty, และ user ถูกส่งมาหรือไม่
-    if (!itemId || !qty || !user) {
-        return res.status(400).json({ message: 'Item ID, quantity, and user are required' });
+    // ตรวจสอบว่า currentUser มีข้อมูลหรือไม่
+    if (!currentUser) {
+        return res.status(400).json({ message: 'User not authenticated' });
     }
 
-    // ตรวจสอบว่าจำนวน qty เป็นค่าบวกและไม่ใช่ NaN
+    console.log("Request Body:", req.body); // เพิ่มบรรทัดนี้เพื่อดูข้อมูลที่ได้รับจาก client
+
+    // ตรวจสอบว่า itemId และ qty ถูกส่งมาหรือไม่
+    if (!itemId || !qty) {
+        return res.status(400).json({ message: 'Item ID and quantity are required' });
+    }
+
+    // ตรวจสอบว่า itemId เป็น ObjectId ที่ถูกต้องหรือไม่
+    if (!mongoose.Types.ObjectId.isValid(itemId)) {
+        return res.status(400).json({ message: 'Invalid Item ID' });
+    }
+
+    // ตรวจสอบว่า จำนวน qty เป็นค่าบวกและไม่ใช่ NaN
     if (isNaN(qty) || qty <= 0) {
         return res.status(400).json({ message: 'Invalid quantity. It must be a positive number.' });
     }
@@ -489,14 +551,33 @@ router.post('/withdraw', async (req, res) => {
         item.activityLogs.push({
             action: 'withdraw',
             qty: qty,
-            user: user,
+            user: currentUser.username,  // ใช้ currentUser ที่มาจาก req.user
             date: new Date(),
             status: 'withdrawn',
             remainingQty: item.qty,
             categoryName: item.categoryID ? item.categoryID.name : "N/A", // เพิ่ม categoryName
         });
+
         // บันทึกการเปลี่ยนแปลงในฐานข้อมูล
         await item.save();
+
+        // บันทึก log การเบิกสินค้าลงในผู้ใช้
+        const user = await User.findOne({ username: currentUser.username });
+
+        if (user) {
+            await user.addLog("Withdraw Item", {
+                itemId: item._id,
+                itemName: item.name,
+                withdrawnBy: currentUser.username,
+                role: user.role,
+                ip: req.ip,
+                device: req.headers['user-agent']
+            });
+
+            console.log(`📝 Log added for ${currentUser.username} withdrawing item ${item.name}`);
+        } else {
+            console.log("⚠️ Cannot find current user to log activity.");
+        }
 
         // ส่งข้อมูลกลับไปที่ Client
         res.status(200).json({
@@ -513,6 +594,8 @@ router.post('/withdraw', async (req, res) => {
         res.status(500).json({ message: 'Server error during withdrawal' });
     }
 });
+
+
 
 // Add product in the selection box
 router.post('/api/items/add', async (req, res) => {
@@ -1923,21 +2006,27 @@ router.post("/restock", async (req, res) => {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
+        // ค้นหาสินค้าในฐานข้อมูล
         let existingItem = await Item.findOne({ categoryID, name, location });
 
+        // ตรวจสอบว่ามีสินค้าตัวนี้อยู่ในระบบหรือไม่
         if (existingItem) {
-            // ✅ ถ้าพบสินค้าเดิม → อัปเดตจำนวนสินค้า (เพิ่ม `qty`)
+            // ถ้าพบสินค้าเดิม → อัปเดตจำนวนสินค้า (เพิ่ม `qty`)
             existingItem.qty += qty;
             existingItem.activityLogs.push({
                 action: "restock",
                 qty,
                 purchasePrice: price,
                 date: new Date(),
-                status: "restocked" // ✅ เพิ่ม status
+                status: "restocked", // เพิ่มสถานะ
+                user: req.user.username,  // ผู้ที่ทำการ restock
+                role: req.user.role, // บทบาทของผู้ใช้
+                ip: req.ip, // IP ของผู้ใช้
+                device: req.headers['user-agent'] // ข้อมูลของอุปกรณ์
             });
             await existingItem.save();
         } else {
-            // ❌ ถ้าไม่มีสินค้าเดิม → เพิ่มสินค้าตัวใหม่เข้าไป
+            // ถ้าไม่มีสินค้าเดิม → เพิ่มสินค้าตัวใหม่
             existingItem = new Item({
                 categoryID,
                 name,
@@ -1950,7 +2039,11 @@ router.post("/restock", async (req, res) => {
                         qty,
                         purchasePrice: price,
                         date: new Date(),
-                        status: "restocked" // ✅ เพิ่ม status
+                        status: "restocked", // เพิ่มสถานะ
+                        user: req.user.username,  // ผู้ที่ทำการ restock
+                        role: req.user.role, // บทบาทของผู้ใช้
+                        ip: req.ip, // IP ของผู้ใช้
+                        device: req.headers['user-agent'] // ข้อมูลของอุปกรณ์
                     }
                 ]
             });
@@ -1963,5 +2056,6 @@ router.post("/restock", async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
 
 module.exports = router;

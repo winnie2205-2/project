@@ -39,7 +39,7 @@ function showadduser() {
                 <small id="passwordError" class="form-text text-danger" style="display:none;">This field is required.</small>
               </div>
               <div class="mb-3">
-                <label class="form-label" for="Confirmpassword">Confirm password*</label>
+                <label class="form-label" for="ConfirmPassword">Confirm password*</label>
                 <div class="input-group">
                       <input class="form-control" type="password" id="ConfirmPassword" placeholder="Confirm Password">
                     <i class="bi bi-eye-slash toggle-password position-absolute top-50 end-0 translate-middle-y me-3" style="cursor: pointer; z-index: 1000;"></i>
@@ -51,11 +51,11 @@ function showadduser() {
                   <label class="form-label">Status*</label>
                   <div class="d-flex justify-content-start align-items-center" style="background:#ffffff;height:40px;width:auto;min-width:200px;border-radius:5px;border:1px solid rgb(0,0,0);box-shadow:0px 0px 2px 1px;">
                     <div class="form-check form-check-inline" style="margin-left:10px;">
-                      <input type="radio" checked class="form-check-input" id="statusEnable" name="statusOptions" style="border:2px solid rgb(0,0,0);" value="Enable">
+                      <input type="radio" checked class="form-check-input" id="statusEnable" name="statusOptions" style="border:2px solid rgb(0,0,0);" value="enable">
                       <label class="form-check-label" for="statusEnable">Enable</label>
                     </div>
                     <div class="form-check form-check-inline" style="margin-right:0px;">
-                      <input type="radio" class="form-check-input" id="statusDisable" name="statusOptions" style="border:2px solid rgb(0,0,0);" value="Disable">
+                      <input type="radio" class="form-check-input" id="statusDisable" name="statusOptions" style="border:2px solid rgb(0,0,0);" value="disable">
                       <label class="form-check-label" for="statusDisable">Disable</label>
                     </div>
                   </div>
@@ -92,8 +92,6 @@ function showadduser() {
       document.querySelectorAll('.toggle-password').forEach(icon => {
         icon.addEventListener('click', function() {
           const input = this.previousElementSibling;
-          
-          // Toggle the icon classes
           if (input.type === 'password') {
             input.type = 'text';
             this.classList.remove('bi-eye-slash');
@@ -113,19 +111,18 @@ function showadduser() {
 }
 
 function saveUser() {
-  // Reset all error messages and red labels
   document.querySelectorAll(".form-text.text-danger").forEach((el) => (el.style.display = "none"));
   document.querySelectorAll(".form-label").forEach((el) => el.classList.remove("text-danger"));
 
   let isValid = true;
 
-  // Get form values
   const Username = document.getElementById("Username").value.trim();
   const Gmail = document.getElementById("Gmail").value.trim();
-  const Password = document.getElementById("password").value;  
-  const ConfirmPassword = document.getElementById("ConfirmPassword").value;  // Changed to "ConfirmPassword" (capital P)
+  const Password = document.getElementById("password").value;
+  const ConfirmPassword = document.getElementById("ConfirmPassword").value;
   const status = document.querySelector('input[name="statusOptions"]:checked').value;
   const selectedRole = document.getElementById("selectRole").value;
+
 
   // Validate Username
   if (!Username) {
@@ -174,23 +171,18 @@ function saveUser() {
     isValid = false;
   }
 
-  // If any field is invalid, stop the process
-  if (!isValid) {
-    return;
-  }
+  if (!isValid) return;
 
   // Prepare data for API
   const newUser = {
     username: Username,
     email: Gmail,
     password: Password,
-    status: status || 'Enable',
+    status: status || 'enable', // Ensure this matches backend expectations
     role: selectedRole,
   };
 
-  console.log('Sending data to API:', newUser);
-
-  // Send data to API
+  // API call remains the same
   fetch('http://localhost:5000/api/users/create', {
     method: 'POST',
     headers: {
@@ -201,25 +193,19 @@ function saveUser() {
   })
   .then(response => {
     if (!response.ok) {
-      throw new Error(`Failed to save user: ${response.status}`);
+      return response.json().then(err => {
+        throw new Error(err.error || `Failed to save user: ${response.status}`);
+      });
     }
     return response.json();
   })
   .then(data => {
-    console.log('Data received from API:', data);
-    Swal.fire({
-      title: 'Success!',
-      text: 'User has been added successfully.',
-      icon: 'success',
-      confirmButtonText: 'OK'
-    }).then(() => {
-      Swal.close();
-      fetchUsers(); // Refresh the user list
-    });
+    Swal.fire('Success!', 'User added successfully.', 'success');
+    fetchUsers();
   })
-  .catch((error) => {
-    console.error('Error saving user:', error);
-    Swal.fire('Error saving user!', error.message, 'error');
+  .catch(error => {
+    console.error('Error:', error);
+    Swal.fire('Error!', error.message, 'error');
   });
 }
 function validateEmail(email) {
@@ -236,10 +222,9 @@ function updateUser(userId) {
   const userData = {
     username: Username,
     email: Gmail,
-    status: status,
+    status: status, // Ensure status is lowercase
     role: selectedRole
   };
-
 
   let isValid = true;
 
@@ -563,11 +548,11 @@ function showEditUser(button) {
                   <label class="form-label">Status*</label>
                   <div class="d-flex justify-content-start align-items-center" style="background:#ffffff;height:40px;width:auto;min-width:200px;border-radius:5px;border:1px solid rgb(0,0,0);box-shadow:0px 0px 2px 1px;">
                     <div class="form-check form-check-inline" style="margin-left:10px;">
-                      <input type="radio" class="form-check-input" id="statusEnable" name="statusOptions" style="border:2px solid rgb(0,0,0);" value="Enable" ${user.status === 'Enable' ? 'checked' : ''}>
+                      <input type="radio" class="form-check-input" id="statusEnable" name="statusOptions" style="border:2px solid rgb(0,0,0);" value="Enable" ${user.status === 'enable' ? 'checked' : ''}>
                       <label class="form-check-label" for="statusEnable">Enable</label>
                     </div>
                     <div class="form-check form-check-inline" style="margin-right:0px;">
-                      <input type="radio" class="form-check-input" id="statusDisable" name="statusOptions" style="border:2px solid rgb(0,0,0);" value="Disable" ${user.status === 'Disable' ? 'checked' : ''}>
+                      <input type="radio" class="form-check-input" id="statusDisable" name="statusOptions" style="border:2px solid rgb(0,0,0);" value="Disable" ${user.status === 'disable' ? 'checked' : ''}>
                       <label class="form-check-label" for="statusDisable">Disable</label>
                     </div>
                   </div>
@@ -664,123 +649,7 @@ function showEditUser(button) {
     }
   });
 }
-function saveUser() {
-  // Reset all error messages and red labels
-  document.querySelectorAll(".form-text.text-danger").forEach((el) => (el.style.display = "none"));
-  document.querySelectorAll(".form-label").forEach((el) => el.classList.remove("text-danger"));
 
-  let isValid = true;
-
-  // Get form values
-  const Username = document.getElementById("Username").value.trim();
-  const Gmail = document.getElementById("Gmail").value.trim();
-  const Password = document.getElementById("Password").value;
-  const Confirmpassword = document.getElementById("Confirmpassword").value;
-  const status = document.querySelector('input[name="statusOptions"]:checked').value.toLowerCase(); // Convert to lowercase
-  const selectedRole = document.getElementById("selectRole").value;
-
-  // Validate Username
-  if (!Username) {
-    document.getElementById("usernameError").style.display = "block";
-    document.getElementById("Username").previousElementSibling.classList.add("text-danger");
-    isValid = false;
-  }
-
-  // Validate Gmail
-  if (!Gmail) {
-    document.getElementById("gmailError").textContent = "This field is required.";
-    document.getElementById("gmailError").style.display = "block";
-    document.getElementById("Gmail").previousElementSibling.classList.add("text-danger");
-    isValid = false;
-  } else if (!validateEmail(Gmail)) {
-    document.getElementById("gmailError").textContent = "Please enter a valid Gmail address (@gmail.com).";
-    document.getElementById("gmailError").style.display = "block";
-    document.getElementById("Gmail").previousElementSibling.classList.add("text-danger");
-    isValid = false;
-  }
-
-  // Validate Password
-  if (!Password) {
-    document.getElementById("passwordError").style.display = "block";
-    document.getElementById("Password").closest('.input-group').previousElementSibling.classList.add("text-danger");
-    isValid = false;
-  }
-
-  // Validate Confirm Password
-  if (!Confirmpassword) {
-    document.getElementById("confirmPasswordError").textContent = "This field is required.";
-    document.getElementById("confirmPasswordError").style.display = "block";
-    document.getElementById("Confirmpassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
-    isValid = false;
-  } else if (Password !== Confirmpassword) {
-    document.getElementById("confirmPasswordError").textContent = "Passwords do not match.";
-    document.getElementById("confirmPasswordError").style.display = "block";
-    document.getElementById("Confirmpassword").closest('.input-group').previousElementSibling.classList.add("text-danger");
-    isValid = false;
-  }
-
-  // Validate Role
-  if (!selectedRole) {
-    document.getElementById("roleError").style.display = "block";
-    document.getElementById("selectRole").previousElementSibling.classList.add("text-danger");
-    isValid = false;
-  }
-
-  // If any field is invalid, stop the process
-  if (!isValid) {
-    return;
-  }
-
-  // Prepare data for API - use lowercase field names to match backend expectations
-  const newUser = {
-    username: Username,
-    email: Gmail,
-    password: Password,
-    status: status || 'enable', // lowercase to match backend
-    role: selectedRole,
-  };
-
-  console.log('Sending data to API:', newUser);
-
-  // Use the correct API endpoint based on other working API calls
-  fetch('http://localhost:5000/api/users/create', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem("token")}`,
-    },
-    body: JSON.stringify(newUser),
-  })
-  .then(response => {
-    console.log('Response status:', response.status);
-    if (!response.ok) {
-      return response.text().then(text => {
-        console.error('Error response body:', text);
-        throw new Error(`Failed to save user: ${response.status}`);
-      });
-    }
-    return response.json();
-  })
-  .then(data => {
-    console.log('Data received from API:', data);
-    Swal.fire({
-      title: 'Success!',
-      text: 'User has been added successfully.',
-      icon: 'success',
-      confirmButtonText: 'OK'
-    }).then(() => {
-      Swal.close();
-      fetchUsers(); // Refresh the user list
-    });
-  })
-  .catch((error) => {
-    console.error('Error saving user:', error);
-    Swal.fire('Error saving user!', error.message, 'error');
-  });
-}
-
-
-// Function to delete a user
 // Function to delete a user
 function deleteUser(userId) {
   console.log("🆔 Trying to delete user:", userId); // Log userId for debugging

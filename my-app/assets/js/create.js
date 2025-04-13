@@ -206,10 +206,14 @@ function saveProduct() {
 
   console.log('Sending data:', newProduct);
 
+  const token = localStorage.getItem('token');
+  console.log('Token from localStorage:', token);
+
   fetch('http://localhost:5000/api/items/create', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
     },
     body: JSON.stringify(newProduct),
   })
