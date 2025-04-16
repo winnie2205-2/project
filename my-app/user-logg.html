@@ -115,10 +115,9 @@
                         <table class="table">
                             <thead style="background: #d9d9d9;">
                                 <tr style="background: #d9d9d9;">
-                                    <th class="text-center" style="width: 150px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Username</th>
-                                    <th class="text-center" style="width: 200px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Description</th>
-                                    <th class="text-center" style="width: 160px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Date/Time</th>
-                                    <th class="text-center" style="width: 80px;background: #d9d9d9;"></th>
+                                    <th class="text-start" style="width: 100px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Username</th>
+                                    <th class="text-start" style="width: 400px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Description</th>
+                                    <th class="text-start" style="width: 160px;background: #d9d9d9;font-size: 18px;font-weight: bold;">Date/Time</th>
                                 </tr>
                             </thead>
                             <tbody id="logTableBody">
@@ -263,25 +262,50 @@
 
     return `${day}/${month}/${year} ${hours}:${minutes}:${seconds} ${ampm}`;
 }
-            function renderTable() {
-                tableBody.innerHTML = "";
-                const start = (currentPage - 1) * logsPerPage;
-                const end = start + logsPerPage;
-                
-                filteredLogs.slice(start, end).forEach(log => {
-                    const row = document.createElement("tr");
-                    const username = log.username || log.userID?.username || log.userID || "Unknown";
-                    const timestamp = log.timestamp ? new Date(log.timestamp) : null;
-        
-                    row.innerHTML = `
-                        <td class="text-center">${username}</td>
-                        <td class="text-center">${log.action || "N/A"}</td>
-                        <td class="text-center">${formatTime(timestamp)}</td>
-                        <td class="text-center"></td>
-                    `;
-                    tableBody.appendChild(row);
-                });
-            }
+function renderTable() {
+  tableBody.innerHTML = "";
+  const start = (currentPage - 1) * logsPerPage;
+  const end = start + logsPerPage;
+
+  filteredLogs.slice(start, end).forEach(log => {
+    const row = document.createElement("tr");
+    const username = log.username || log.userID?.username || log.userID || "Unknown";
+    const timestamp = log.timestamp ? new Date(log.timestamp) : null;
+    let description = log.action;
+
+    // Generate detailed description based on action type
+    if (log.details) {
+      switch(log.action) {
+        case 'Create Item':
+          description = `Added product: ${log.details.itemName}, 
+                          Price: ${log.details.itemPrice}, 
+                          Qty: ${log.details.itemQty}, 
+                          Location: ${log.details.itemLocation}`;
+          break;
+        case 'Edit Item':
+          const changes = Object.entries(log.details.changes).map(([field, { oldValue, newValue }]) => 
+            `${field}: ${oldValue} → ${newValue}`
+          ).join(', ');
+          description = `Edited ${log.details.itemName}: ${changes}`;
+          break;
+        case 'Export Report':
+          description = `Exported ${log.details.reportType} report (${log.details.startDate} to ${log.details.endDate})`;
+          break;
+        case 'Delete Item':
+          description = `Deleted product: ${log.details.itemName}`;
+          break;
+        // Add more cases as needed
+      }
+    }
+
+    row.innerHTML = `
+      <td class="text-start">${username}</td>
+      <td class="text-start">${description}</td>
+      <td class="text-start">${formatTime(timestamp)}</td>
+    `;
+    tableBody.appendChild(row);
+  });
+}
         
             function setupPagination() {
                 paginationContainer.innerHTML = "";

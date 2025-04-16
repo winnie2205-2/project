@@ -23,14 +23,6 @@ function showimport() {
                   <label for="fileUpload" class="form-label float-start location-label">Upload File</label>
                   <input type="file" id="fileUpload" name="file" class="form-control file-upload-input" accept=".csv, .xls, .xlsx">
                 </div>
-                <div class="mb-3">
-                  <label for="importMode" class="form-label float-start location-label">Import Mode</label>
-                  <select name="importMode" id="importMode" class="form-select dropdown-style">
-                    <option value="normal">Normal Import</option>
-                    <option value="skip">Skip Duplicates</option>
-                    <option value="update">Update Existing</option>
-                  </select>
-                </div>
                 <div class="text-end mt-4">
                   <button id="closeButton" class="btn btn-secondary me-2" type="button" style="background: #ebe3ce;color: rgb(0,0,0);width: 100px;box-shadow: 0px 0px 2px 1px;padding: 7px 12px;border-radius: 50px;">Close</button>
                   <button id="saveButton" class="btn btn-success" type="button" style="background: #28aa4a;color: rgb(0,0,0);width: 100px;box-shadow: 0px 0px 2px 1px;border-radius: 50px;padding-top: 7px;padding-bottom: 7px;">Import</button>
@@ -74,7 +66,8 @@ function showimport() {
 function saveimport() {
   const fileType = document.getElementById("fileTypeSelect").value;
   const fileUpload = document.getElementById("fileUpload").files[0];
-  const importMode = document.getElementById("importMode").value;
+  // Set a default import mode since we removed the selection
+  const importMode = "normal";
 
   if (!fileType || !fileUpload) {
     Swal.fire("Error", "Please select a file type and upload a file.", "warning");
@@ -101,7 +94,15 @@ function saveimport() {
       return response.json();
     })
     .then((data) => {
-      Swal.fire("Success", data.message, "success");
+      Swal.fire("Success", data.message, "success").then(() => {
+        // Directly refresh items after the success message is acknowledged
+        if (typeof window.fetchItems === "function") {
+          window.fetchItems();
+        } else {
+          // Fallback - reload the data through another method or refresh the page
+          window.location.reload();
+        }
+      });
     })
     .catch((error) => {
       console.error("Error during import:", error);
@@ -143,10 +144,6 @@ function importData(formData, mode) {
             <p>${message}</p>
             <div class="import-stats">
               <p>Total: ${stats.total}</p>
-              <p>Imported: ${stats.imported}</p>
-              ${mode === "normal" ? `<p>Duplicates Found: ${stats.duplicates}</p>` : ""}
-              ${mode === "skip" ? `<p>Skipped: ${stats.skipped}</p>` : ""}
-              ${mode === "update" ? `<p>Updated: ${stats.updated}</p>` : ""}
               <p>Failed: ${stats.failed}</p>
             </div>
           </div>
@@ -162,5 +159,6 @@ function importData(formData, mode) {
       Swal.fire("Import Error", error.message, "error");
     });
 }
+
 // Call the function to show the import modal
 showimport();
