@@ -59,10 +59,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initial load
     await loadProfile();
 
-    // Handle logo upload preview
-    document.getElementById('logoUpload').addEventListener('change', function(e) {
-        // [Your existing code for logo upload]
-    });
+// Handle logo upload preview
+document.getElementById('logoUpload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    
+    if (file) {
+        // Check if file is an image
+        if (!file.type.match('image.*')) {
+            showErrorToast('Please select an image file');
+            return;
+        }
+        
+        // Check file size (limit to 1MB)
+        if (file.size > 1024 * 1024) {
+            showErrorToast('Image file size should be less than 1MB');
+            return;
+        }
+        
+        const reader = new FileReader();
+        
+        reader.onload = function(event) {
+            // Update preview
+            document.getElementById('logoPreview').src = event.target.result;
+            // Store in temp variable for later saving
+            tempLogoUrl = event.target.result;
+        };
+        
+        reader.readAsDataURL(file);
+    }
+});
 
     // Save handler with validation
     document.getElementById('saveButton').addEventListener('click', async () => {
