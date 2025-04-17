@@ -20,7 +20,7 @@ const profileSchema = new mongoose.Schema({
     },
     salesPhone: {
       type: String,
-      required: true,  // Add required if needed
+      required: true,
     },
     email: {
       type: String,
@@ -28,8 +28,13 @@ const profileSchema = new mongoose.Schema({
     },
     website: {
       type: String,
-      required: true,  // Add required if needed
+      required: true,
     },
+  },
+  defaultLocation: {
+    type: String,
+    enum: ['warehouse1', 'warehouse2', 'all'], // จำกัดเฉพาะค่าที่อนุญาต
+    default: 'all', // ค่าเริ่มต้น
   },
 }, { timestamps: true });
 
