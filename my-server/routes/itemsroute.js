@@ -548,96 +548,83 @@ router.get("/report/low-stock", async (req, res) => {
 });
 
 router.post('/withdraw', authenticate, async (req, res) => {
-    const { itemId, qty } = req.body;
-    const currentUser = req.user;  // ใช้ข้อมูลจาก token ที่ยืนยันตัวตนแล้ว
+    const items = req.body; // 👈 รับเป็น array
 
-    // ตรวจสอบว่า currentUser มีข้อมูลหรือไม่
+    const currentUser = req.user;
     if (!currentUser) {
         return res.status(400).json({ message: 'User not authenticated' });
     }
 
-    console.log("Request Body:", req.body); // เพิ่มบรรทัดนี้เพื่อดูข้อมูลที่ได้รับจาก client
-
-    // ตรวจสอบว่า itemId และ qty ถูกส่งมาหรือไม่
-    if (!itemId || !qty) {
-        return res.status(400).json({ message: 'Item ID and quantity are required' });
-    }
-
-    // ตรวจสอบว่า itemId เป็น ObjectId ที่ถูกต้องหรือไม่
-    if (!mongoose.Types.ObjectId.isValid(itemId)) {
-        return res.status(400).json({ message: 'Invalid Item ID' });
-    }
-
-    // ตรวจสอบว่า จำนวน qty เป็นค่าบวกและไม่ใช่ NaN
-    if (isNaN(qty) || qty <= 0) {
-        return res.status(400).json({ message: 'Invalid quantity. It must be a positive number.' });
+    if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: 'No items provided for withdrawal' });
     }
 
     try {
-        // ค้นหาสินค้าในฐานข้อมูลตาม itemId
-        const item = await Item.findById(itemId);
-        if (!item) {
-            return res.status(404).json({ message: 'Item not found' });
-        }
+        const results = [];
 
-        // ตรวจสอบว่า จำนวนที่ต้องการเบิกมากกว่าจำนวนที่มีในคลังหรือไม่
-        if (item.qty < qty) {
-            return res.status(400).json({ message: 'Insufficient stock to withdraw' });
-        }
+        for (const { itemId, qty } of items) {
+            // ตรวจสอบข้อมูล
+            if (!itemId || !qty || isNaN(qty) || qty <= 0 || !mongoose.Types.ObjectId.isValid(itemId)) {
+                results.push({ itemId, error: 'Invalid data provided' });
+                continue;
+            }
 
-        // ลดจำนวนสินค้าในคลัง
-        item.qty -= qty;
+            const item = await Item.findById(itemId);
+            if (!item) {
+                results.push({ itemId, error: 'Item not found' });
+                continue;
+            }
 
-        // เพิ่มข้อมูลการเบิกใน activityLogs
-        item.activityLogs.push({
-            action: 'withdraw',
-            qty: qty,
-            user: currentUser.username,  // ใช้ currentUser ที่มาจาก req.user
-            date: new Date(),
-            status: 'withdrawn',
-            remainingQty: item.qty,
-            categoryName: item.categoryID ? item.categoryID.name : "N/A", // เพิ่ม categoryName
-        });
+            if (item.qty < qty) {
+                results.push({ itemId, error: 'Insufficient stock to withdraw' });
+                continue;
+            }
 
-        // บันทึกการเปลี่ยนแปลงในฐานข้อมูล
-        await item.save();
+            item.qty -= qty;
 
-        // บันทึก log การเบิกสินค้าลงในผู้ใช้
-        const user = await User.findOne({ username: currentUser.username });
-
-        if (user) {
-            await user.addLog("Withdraw Item", {
-                itemId: item._id,
-                itemName: item.name,
-                withdrawnBy: currentUser.username,
-                qtyWithdrawn: qty,  // จำนวนสินค้าที่เบิก
-                remainingQty: item.qty,  // จำนวนสินค้าหลังการเบิก
+            // เพิ่ม log การเบิก
+            item.activityLogs.push({
+                action: 'withdraw',
+                qty,
+                user: currentUser.username,
+                date: new Date(),
+                status: 'withdrawn',
+                remainingQty: item.qty,
                 categoryName: item.categoryID ? item.categoryID.name : "N/A",
-                role: user.role,
-                ip: req.ip,
-                device: req.headers['user-agent']
             });
 
-            console.log(`📝 Log added for ${currentUser.username} withdrawing item ${item.name}`);
-        } else {
-            console.log("⚠️ Cannot find current user to log activity.");
+            await item.save();
+
+            const user = await User.findOne({ username: currentUser.username });
+            if (user) {
+                await user.addLog("Withdraw Item", {
+                    itemId: item._id,
+                    itemName: item.name,
+                    withdrawnBy: currentUser.username,
+                    qtyWithdrawn: qty,
+                    remainingQty: item.qty,
+                    categoryName: item.categoryID ? item.categoryID.name : "N/A",
+                    role: user.role,
+                    ip: req.ip,
+                    device: req.headers['user-agent']
+                });
+            }
+
+            results.push({
+                itemId: item._id,
+                itemName: item.name,
+                remainingQty: item.qty
+            });
         }
 
-        // ส่งข้อมูลกลับไปที่ Client
-        res.status(200).json({
-            message: 'Item withdrawn successfully',
-            item: {
-                id: item._id,
-                name: item.name,
-                remainingQty: item.qty,  // จำนวนสินค้าหลังการเบิก
-                categoryName: item.categoryID ? item.categoryID.name : "N/A"
-            }
-        });
+        res.status(200).json({ message: 'Withdrawal processed', results });
+
     } catch (error) {
-        console.error('Error during withdrawal:', error);
+        console.error('❌ Error during withdrawal:', error);
         res.status(500).json({ message: 'Server error during withdrawal' });
     }
 });
+
 
 // Add product in the selection box
 router.post('/api/items/add', async (req, res) => {
@@ -2042,13 +2029,22 @@ router.post("/import", async (req, res) => {
 
 router.post("/restock", authenticate, async (req, res) => {
     try {
-        const { categoryID, name, price, qty, location } = req.body;
+        const { itemId, price, qty } = req.body;
 
-        if (!categoryID || !name || !price || !qty || !location) {
+        if (!itemId || !price || !qty) {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
-        let existingItem = await Item.findOne({ categoryID, name, location });
+        // 🔍 ค้นหาด้วย ID
+        const existingItem = await Item.findById(itemId);
+
+        if (!existingItem) {
+            return res.status(404).json({ error: "Item not found" });
+        }
+
+        if (existingItem.status === 'disabled') {
+            return res.status(400).json({ error: "Cannot restock disabled item" });
+        }
 
         const logData = {
             action: "restock",
@@ -2062,23 +2058,10 @@ router.post("/restock", authenticate, async (req, res) => {
             device: req.headers['user-agent']
         };
 
-        if (existingItem) {
-            existingItem.qty += qty;
-            existingItem.activityLogs.push(logData);
-            await existingItem.save();
-        } else {
-            existingItem = new Item({
-                categoryID,
-                name,
-                price,
-                qty,
-                location,
-                activityLogs: [logData]
-            });
-            await existingItem.save();
-        }
+        existingItem.qty += qty;
+        existingItem.activityLogs.push(logData);
+        await existingItem.save();
 
-        // 🟩 เพิ่มบันทึก log ให้ user
         const user = await User.findOne({ username: req.user.username });
 
         if (user) {
@@ -2090,10 +2073,6 @@ router.post("/restock", authenticate, async (req, res) => {
                 ip: req.ip,
                 device: req.headers['user-agent']
             });
-
-            console.log(`📝 Log added for ${req.user.username} restocking ${existingItem.name} (${qty} units)`);
-        } else {
-            console.log("⚠️ Cannot find current user to log activity.");
         }
 
         res.json({ message: "Restocked successfully", item: existingItem });

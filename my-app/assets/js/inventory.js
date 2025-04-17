@@ -119,7 +119,7 @@ async function fetchItems() {
         alert('Failed to load items. Please check console for details.');
     }
 }
-// Display items in the table
+
 // Display items in the table
 function displayItems(items) {
     
@@ -422,45 +422,46 @@ document.getElementById('withdrawButton').addEventListener('click', function () 
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('token')}` // เพิ่ม token ใน header
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
                         },
-                        body: JSON.stringify({
-                            itemId: quantities[0]?.itemId,  // Assuming single item withdrawal
-                            qty: quantities[0]?.qty,
-                            user: "john_doe" // Replace with actual user
-                        }),
+                        body: JSON.stringify(quantities), // ✅ ส่งหลายรายการไป backend
                     });
-
+                
                     if (response.ok) {
-                        // Update the frontend state
-                        const updatedItem = allItems.find(item => item._id === quantities[0].itemId);
-                        if (updatedItem) {
-                            updatedItem.qty -= quantities[0].qty; // Reduce the quantity
-                        }
-
-                        // Re-render the table
+                        const result = await response.json();
+                
+                        // ✅ Update frontend state สำหรับทุกรายการ
+                        quantities.forEach(({ itemId, qty }) => {
+                            const updatedItem = allItems.find(item => item._id === itemId);
+                            if (updatedItem) {
+                                updatedItem.qty -= qty;
+                            }
+                        });
+                
+                        // ✅ Re-render the table
                         displayItems(filteredItems);
-
-                        // Deselect the "Select All" checkbox
+                
+                        // ✅ Deselect the "Select All" checkbox
                         const selectAllCheckbox = document.getElementById('selectAllCheckbox');
                         if (selectAllCheckbox) {
                             selectAllCheckbox.checked = false;
                         }
-
-                        // Clear selected items
+                
+                        // ✅ Clear selected items
                         selectedItems = [];
                         toggleActionButtons(); // Hide action buttons
-
+                
                         Swal.fire('Success', 'Items have been withdrawn.', 'success').then(() => {
                             Swal.close();
                         });
                     } else {
-                        Swal.fire('Error', 'Failed to withdraw items.', 'error');
+                        const errorText = await response.text();
+                        Swal.fire('Error', `Failed to withdraw items: ${errorText}`, 'error');
                     }
                 } catch (error) {
                     console.error('Error during withdrawal:', error);
                     Swal.fire('Error', 'An error occurred during the withdrawal.', 'error');
-                }
+                }                
             });
 
             // Close button with confirmation
@@ -642,11 +643,9 @@ document.getElementById('addButton').addEventListener('click', function() {
                                 'Authorization': `Bearer ${localStorage.getItem('token')}`
                             },
                             body: JSON.stringify({
-                                categoryID: item.category || item._id.split('-')[0], // Try to get the correct category ID
-                                name: item.name,
-                                price: item.price || 0, // Ensure price is not undefined
+                                itemId: item._id,
                                 qty: qty,
-                                location: item.location
+                                price: item.price || 0
                             }),
                         });
 
