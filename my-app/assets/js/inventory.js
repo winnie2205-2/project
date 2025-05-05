@@ -72,27 +72,6 @@ async function fetchItems() {
             if (locationName) {
                 filteredByLocation = items.filter(item => item.location === locationName);
                 
-                // Add a location indicator to the page if it doesn't exist
-                if (!document.getElementById('locationIndicator')) {
-                    const tableHeader = document.querySelector('.table-responsive');
-                    if (tableHeader) {
-                        const indicator = document.createElement('div');
-                        indicator.id = 'locationIndicator';
-                        indicator.className = 'alert alert-info mb-3';
-                        indicator.innerHTML = `Showing items from location: <strong>${locationName}</strong>`;
-                        tableHeader.parentNode.insertBefore(indicator, tableHeader);
-                    }
-                } else {
-                    document.getElementById('locationIndicator').innerHTML = 
-                        `Showing items from location: <strong>${locationName}</strong>`;
-                    document.getElementById('locationIndicator').style.display = 'block';
-                }
-            }
-        } else {
-            // Hide the location indicator if showing all locations
-            const indicator = document.getElementById('locationIndicator');
-            if (indicator) {
-                indicator.style.display = 'none';
             }
         }
         
@@ -136,7 +115,7 @@ function displayItems(items) {
         // If no items to display, show a message
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td colspan="8" class="text-center">ไม่มีข้อมูล</td>
+            <td colspan="8" class="text-center">No data found.</td>
         `;
         tableBody.appendChild(row);
     } else {
@@ -297,7 +276,7 @@ document.getElementById('withdrawButton').addEventListener('click', function () 
                                     <tr>
                                         <th>ID</th>
                                         <th>Name</th>
-                                        <th>Location</th>
+                                         <th style="width: 25%;">Location</th>
                                         <th>QTY</th>
                                     </tr>
                                 </thead>
@@ -516,7 +495,7 @@ document.getElementById('addButton').addEventListener('click', function() {
                                     <tr>
                                         <th>ID</th>
                                         <th>Name</th>
-                                        <th>Location</th>
+                                         <th style="width: 25%;">Location</th>
                                         <th>QTY</th>
                                     </tr>
                                 </thead>
@@ -1033,7 +1012,7 @@ async function showEditBox(_id) {
                         });
 
                         if (updateResponse.ok) {
-                            Swal.fire("Saved!", "ข้อมูลได้ทำการแก้ไขแล้ว", "success").then(() => {
+                            Swal.fire("Saved!", "The data has been updated.", "success").then(() => {
                                 fetchItems();
                             });
                         } else {

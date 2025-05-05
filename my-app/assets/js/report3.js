@@ -9,9 +9,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Initialize data
 let currentPage = 1;
-const itemsPerPage = 15;
+const itemsPerPage = 12; // Maximum items per page
 let allLowStockItems = [];
 let filteredItems = [];
+let dynamicItemsPerPage = itemsPerPage; // This will adjust based on content
 
 async function fetchLowStockItems() {
     try {
@@ -57,32 +58,68 @@ function handleSearch(event) {
 
 function displayLowStockItems() {
     const reportBody = document.querySelector('.table tbody');
+    const contentBox = document.getElementById('content-box');
     reportBody.innerHTML = '';
 
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, filteredItems.length);
-    const itemsToDisplay = filteredItems.slice(startIndex, endIndex);
+    const startIndex = (currentPage - 1) * dynamicItemsPerPage;
+    
+    // Always start with the standard items per page
+    dynamicItemsPerPage = itemsPerPage;
+    
+    // For very long content, we might reduce items per page
+    const itemsToDisplay = filteredItems.slice(startIndex, startIndex + dynamicItemsPerPage);
 
     if (itemsToDisplay.length === 0) {
         reportBody.innerHTML = `<tr><td colspan="8" class="text-center">No low stock items found</td></tr>`;
         return;
     }
+    
+    // Get the visible height of the content box
+    const contentBoxHeight = contentBox.clientHeight - 55; // Accounting for header and some padding
+    let displayedItems = 0;
+    let reachedMaxHeight = false;
 
-    itemsToDisplay.forEach((item, index) => {
+    // Create and append each row
+    for (let i = 0; i < itemsToDisplay.length; i++) {
+        const item = itemsToDisplay[i];
         const row = document.createElement('tr');
-        const itemNumber = startIndex + index + 1;
+        const itemNumber = startIndex + i + 1;
+        
+        // Create cells with proper text wrapping
         row.innerHTML = `
             <td class="text-center">${itemNumber}</td>
-            <td class="text-start">${item.categoryName || 'N/A'}</td>
-            <td class="text-start">${item.name}</td>
-            <td class="text-start">${item.location}</td>
+            <td class="text-start wrap-text">${item.categoryName || 'N/A'}</td>
+            <td class="text-start wrap-text">${item.name}</td>
+            <td class="text-start wrap-text">${item.location}</td>
             <td class="text-end">${formatInteger(item.qty)}</td>
             <td class="text-end">${formatCurrency(item.price)}</td>
             <td class="text-end">${formatInteger(item.reorderPoint)}</td>
             <td class="text-center">${formatDateTime(item.createdAt)}</td>
         `;
+        
         reportBody.appendChild(row);
-    });
+        displayedItems++;
+        
+        // Check if we've exceeded available height
+        // Adding a small buffer (10px) to account for borders
+        if (reportBody.offsetHeight > contentBoxHeight) {
+            // Remove the last row that caused overflow
+            reportBody.removeChild(row);
+            displayedItems--;
+            reachedMaxHeight = true;
+            break;
+        }
+    }
+    
+    // If we couldn't display all items due to height constraints
+    if (reachedMaxHeight && displayedItems < dynamicItemsPerPage) {
+        // Update our dynamic items per page for future reference
+        dynamicItemsPerPage = displayedItems;
+        console.log(`⚠️ Adjusted items per page to ${dynamicItemsPerPage} due to content height`);
+        
+        // Update pagination with our new item count
+        updatePaginationButtons(filteredItems.length, dynamicItemsPerPage);
+    }
 }
 
 // New helper function for integer formatting
@@ -128,9 +165,10 @@ function formatDateForSearch(dateString) {
     const year = String(date.getFullYear()).slice(-2);
     return `${day}/${month}/${year}`;
 }
+
 // Pagination functions
-function updatePaginationButtons(totalItems) {
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
+function updatePaginationButtons(totalItems, currentItemsPerPage = dynamicItemsPerPage) {
+    const totalPages = Math.ceil(totalItems / currentItemsPerPage);
     const pagination = document.querySelector(".pagination");
     if (!pagination) {
         console.error("❌ Pagination element not found!");

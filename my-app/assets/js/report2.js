@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Global variables
 let currentPage = 1;
-const itemsPerPage = 15;
+const itemsPerPage = 12;
 let allItems = [];
 let filteredItems = [];
 

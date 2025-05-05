@@ -151,3 +151,10 @@ input, textarea, select {
   align-items: center;
   justify-content: center;
 }
+
+#itemTableBody td {
+  max-width: 400px; /* Adjust based on your column width */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
