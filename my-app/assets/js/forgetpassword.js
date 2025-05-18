@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Email format validation
       if (!validateEmail(email)) {
-          showEmailError('รูปแบบอีเมลไม่ถูกต้อง');
+          showEmailError('The email format is incorrect.');
           return;
       }
 
@@ -34,14 +34,14 @@ document.addEventListener('DOMContentLoaded', function() {
           const data = await response.json();
 
           if (!response.ok) {
-              throw new Error(data.error || 'เกิดข้อผิดพลาดในการส่งอีเมล');
+              throw new Error(data.error || 'An error occurred while sending the email.');
           }
 
           Swal.fire({
               icon: 'success',
-              title: 'ส่งอีเมลเรียบร้อย!',
-              html: `กรุณาตรวจสอบอีเมล <strong>${email}</strong><br>เพื่อตั้งค่ารหัสผ่านใหม่`,
-              confirmButtonText: 'ตกลง'
+              title: 'The email has been sent successfully!',
+              html: `Please check your email. <strong>${email}</strong><br>to reset your password.`,
+              confirmButtonText: 'Confirmed.'
           });
 
       } catch (error) {
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (!token) {
       form.innerHTML = `
           <div class="alert alert-danger" role="alert">
-              ลิงก์รีเซ็ตรหัสผ่านไม่ถูกต้อง กรุณาขอลิงก์ใหม่
+              The password reset link is invalid. Please request a new link.
           </div>
       `;
       return;
@@ -88,13 +88,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Validate password
       if (newPassword.length < 8) {
-          showError('passwordError', 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร', 'newPassword');
+          showError('passwordError', 'The password must be at least 8 characters long.', 'newPassword');
           isValid = false;
       }
 
       // Validate match
       if (newPassword !== confirmPassword) {
-          showError('confirmError', 'รหัสผ่านไม่ตรงกัน', 'confirmPassword');
+          showError('confirmError', 'The passwords do not match.', 'confirmPassword');
           isValid = false;
       }
 
@@ -110,24 +110,24 @@ document.addEventListener('DOMContentLoaded', function() {
           const data = await response.json();
           
           if (!response.ok) {
-              throw new Error(data.error || 'รีเซ็ตรหัสผ่านไม่สำเร็จ');
+              throw new Error(data.error || 'Password reset failed.');
           }
 
           Swal.fire({
-              title: 'สำเร็จ!',
-              text: 'ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว',
+              title: 'Success!',
+              text: 'The password has been successfully reset.',
               icon: 'success',
-              confirmButtonText: 'เข้าสู่ระบบ'
+              confirmButtonText: 'Please log in'
           }).then(() => {
               window.location.href = 'index.html';
           });
 
       } catch (error) {
           Swal.fire({
-              title: 'เกิดข้อผิดพลาด!',
+              title: 'An error has occurred!',
               text: error.message,
               icon: 'error',
-              confirmButtonText: 'ตกลง'
+              confirmButtonText: 'Confirmed.'
           });
       }
   });

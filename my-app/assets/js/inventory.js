@@ -325,47 +325,48 @@ document.getElementById('withdrawButton').addEventListener('click', function () 
         background: 'transparent',
         didOpen: () => {
             // Event listeners for quantity buttons
-            document.querySelectorAll('.decrease-qty').forEach(button => {
-                button.addEventListener('click', function () {
-                    const input = document.querySelector(`.withdraw-quantity[data-id='${this.dataset.id}']`);
-                    const currentValue = parseInt(input.value) || 0;
-                    const min = 1;
-                    input.value = Math.max(min, currentValue - 1);
-                });
-            });
-
             document.querySelectorAll('.withdraw-quantity').forEach(input => {
                 input.addEventListener('input', function (event) {
                     const max = parseInt(this.dataset.max) || 1;
                     const min = 1;
                     
-                    // Remove any non-numeric characters
+                    // Only allow numbers
                     let value = this.value.replace(/[^0-9]/g, '');
                     
-                    // Convert to number and enforce limits
-                    value = parseInt(value) || min;
-                    value = Math.max(min, Math.min(max, value));
+                    // If empty, allow it (user is typing)
+                    if (value === '') {
+                        this.value = '';
+                        return;
+                    }
                     
-                    this.value = value === min ? '' : value;
+                    // Convert to number and enforce limits
+                    let numValue = parseInt(value);
+                    
+                    // Don't enforce max during typing, just store the value
+                    if (numValue < min) {
+                        this.value = '';
+                    } else if (numValue > max) {
+                        this.value = max.toString();
+                    } else {
+                        this.value = numValue.toString();
+                    }
                 });
-
+            
                 input.addEventListener('blur', function (event) {
                     const max = parseInt(this.dataset.max) || 1;
                     const min = 1;
-                    let value = parseInt(this.value) || min;
-                    value = Math.max(min, Math.min(max, value));
-                    this.value = value;
+                    
+                    // If empty or invalid on blur, set to minimum
+                    if (this.value === '' || parseInt(this.value) < min) {
+                        this.value = min.toString();
+                    } else {
+                        let value = parseInt(this.value);
+                        value = Math.max(min, Math.min(max, value));
+                        this.value = value.toString();
+                    }
                 });
             });
 
-            document.querySelectorAll('.increase-qty').forEach(button => {
-                button.addEventListener('click', function () {
-                    const input = document.querySelector(`.withdraw-quantity[data-id='${this.dataset.id}']`);
-                    const currentValue = parseInt(input.value) || 0;
-                    const max = parseInt(input.dataset.max) || 1;
-                    input.value = Math.min(max, currentValue + 1);
-                });
-            });
         
             // Save button functionality
             document.getElementById('saveButton').addEventListener('click', async function () {
@@ -540,34 +541,40 @@ document.getElementById('addButton').addEventListener('click', function() {
         background: 'transparent',
         didOpen: () => {
             // Event listeners for quantity buttons
-            document.querySelectorAll('.decrease-qty').forEach(button => {
-                button.addEventListener('click', function () {
-                    const input = document.querySelector(`.restock-quantity[data-id='${this.dataset.id}']`);
-                    const currentValue = parseInt(input.value) || 0;
-                    const min = 1;
-                    input.value = Math.max(min, currentValue - 1);
-                });
-            });
-
             document.querySelectorAll('.restock-quantity').forEach(input => {
                 input.addEventListener('input', function (event) {
                     const min = 1;
                     
-                    // Remove any non-numeric characters
+                    // Only allow numbers
                     let value = this.value.replace(/[^0-9]/g, '');
                     
-                    // Convert to number and enforce minimum
-                    value = parseInt(value) || min;
-                    value = Math.max(min, value);
+                    // If empty, allow it (user is typing)
+                    if (value === '') {
+                        this.value = '';
+                        return;
+                    }
                     
-                    this.value = value === min ? '' : value;
+                    // Convert to number and enforce minimum
+                    let numValue = parseInt(value);
+                    
+                    if (numValue < min) {
+                        this.value = '';
+                    } else {
+                        this.value = numValue.toString();
+                    }
                 });
-
+            
                 input.addEventListener('blur', function (event) {
                     const min = 1;
-                    let value = parseInt(this.value) || min;
-                    value = Math.max(min, value);
-                    this.value = value;
+                    
+                    // If empty or invalid on blur, set to minimum
+                    if (this.value === '' || parseInt(this.value) < min) {
+                        this.value = min.toString();
+                    } else {
+                        let value = parseInt(this.value);
+                        value = Math.max(min, value);
+                        this.value = value.toString();
+                    }
                 });
             });
 
